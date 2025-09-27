@@ -99,7 +99,6 @@ function Layout() {
       <div className="flex-1 flex flex-col overflow-hidden">
         <header className="flex items-center justify-between p-4 bg-white border-b border-gray-200 shadow-sm h-16">
           <h1 className="text-2xl font-bold text-gray-800">{currentPageLabel}</h1>
-          <input type="text" placeholder="Tìm kiếm..." className="px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 hidden md:block"/>
         </header>
 
         <main className="flex-1 p-6 overflow-auto">
