@@ -14,6 +14,7 @@ import QuanLyTram from "./pages/QuanLyTram";
 import QuanLyTuyenDuong from "./pages/QuanLyTuyenDuong";
 import ThongTinPhuHuynh from "./pages/ThongTinPhuHuynh";
 import GuiThongBao from "./pages/GuiThongBao";
+import DiemDanhHocSinh from "./pages/DiemDanhHocSinh";
 function App() {
   return (
     <Router>
@@ -35,6 +36,7 @@ function App() {
           <Route path="tram" element={<QuanLyTram />} />
           <Route path="tuyenduong" element={<QuanLyTuyenDuong />} />
           <Route path="guithongbaoph" element={<GuiThongBao />} />
+          <Route path="diemdanh" element={<DiemDanhHocSinh />} />
         </Route>
 
         {/* Redirect từ trang gốc đến dashboard */}

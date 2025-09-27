@@ -20,7 +20,9 @@ function Layout() {
     { path: "tuyenduong",    label: "Quản lý tuyến đường",   icon: <FaRoute size={20} /> },
     { path: "tram",          label: "Quản lý trạm",          icon: <FaMapPin size={20} /> },
     { path: "thongtinphuhuynh",      label: "Thông tin phụ huynh",   icon: <FaUsers size={20} />},
-    { path: "guithongbaoph",      label: "Gửi thông báo phụ huynh",   icon: <FaUsers size={20} />}
+    { path: "guithongbaoph",      label: "Gửi thông báo phụ huynh",   icon: <FaBell size={20} />},
+    { path: "diemdanh",      label: "Điểm danh học sinh",   icon: <FaUsers size={20} />}
+    
   ];
 
   const currentPageLabel = menuItems.find(item => location.pathname.endsWith(item.path))?.label || "Dashboard";
