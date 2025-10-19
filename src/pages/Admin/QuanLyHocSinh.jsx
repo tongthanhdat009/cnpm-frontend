@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { FaPlus, FaSearch, FaEdit, FaTrash, FaTimes } from 'react-icons/fa';
-import StudentModal from '../components/StudentModal';
+import StudentModal from '../../components/StudentModal';
 // --- DỮ LIỆU MẪU (Mô phỏng dữ liệu từ CSDL của bạn) ---
 const sampleParents = [
   { id_nguoi_dung: 101, ho_ten: "Nguyễn Văn B" },

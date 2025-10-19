@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { FaPlus, FaSearch, FaEdit, FaTrash, FaTimes, FaMapMarkerAlt } from 'react-icons/fa';
 import ReactMapGL, { Marker } from '@goongmaps/goong-map-react';
-import StopModal from '../components/StopModal';
+import StopModal from '../../components/StopModal';
 // --- DỮ LIỆU MẪU (Mô phỏng bảng diem_dung) ---
 const sampleStops = [
   { id_diem_dung: 1, ten_diem_dung: 'Trường THCS A', dia_chi: '123 Võ Văn Tần, P. 6, Q. 3, TPHCM', vi_do: 10.7769, kinh_do: 106.7008 },

@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { FaPlus, FaSearch, FaEdit, FaTrash, FaTimes, FaRoute } from 'react-icons/fa';
-import BusModal from '../components/BusModal';
+import BusModal from '../../components/BusModal';
 // --- DỮ LIỆU MẪU (Mô phỏng bảng xe_buyt và các bảng liên quan) ---
 const sampleBuses = [
   { id_xe_buyt: 1, bien_so_xe: "51B-123.45", so_ghe: 29, mau_xe: "Mercedes Sprinter", tai_xe_hien_tai: "Trần Văn Sáu" },

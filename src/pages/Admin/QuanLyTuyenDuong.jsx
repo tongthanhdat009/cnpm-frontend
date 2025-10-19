@@ -1,6 +1,6 @@
 import React, { useState} from 'react';
 import { FaPlus, FaEye, FaTrash} from 'react-icons/fa';
-import RouteModal from '../components/RouteModal';
+import RouteModal from '../../components/RouteModal';
 
 // --- DỮ LIỆU MẪU (Mô phỏng CSDL) ---
 const sampleStops = [

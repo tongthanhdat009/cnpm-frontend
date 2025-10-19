@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { FaPlus, FaSearch, FaEdit, FaTrash, FaUserFriends } from 'react-icons/fa';
-import ParentModal from '../components/ParentModal';
+import ParentModal from '../../components/ParentModal';
 // --- DỮ LIỆU MẪU (Mô phỏng bảng nguoi_dung với vai_tro = 'phu_huynh') ---
 const sampleParents = [
   { id_nguoi_dung: 101, ho_ten: "Nguyễn Văn B", email: "van.b@email.com", so_dien_thoai: "0901234567" },

@@ -1,8 +1,8 @@
 import React, { useState} from 'react';
 import { FaPlus, FaTimes, FaEdit, FaTrash, FaBus, FaUserTie, FaChevronLeft, FaChevronRight, FaUsers, FaInfoCircle, FaRoute } from 'react-icons/fa';
 import ReactMapGL, { Marker, Source, Layer } from '@goongmaps/goong-map-react';
-import ScheduleModal from '../components/ScheduleModal';
-import ScheduleDetailModal from '../components/ScheduleDetailModal';
+import ScheduleModal from '../../components/ScheduleModal';
+import ScheduleDetailModal from '../../components/ScheduleDetailModal';
 // --- DỮ LIỆU MẪU (Đã cập nhật để hỗ trợ các tính năng mới) ---
 const sampleStudents = [
   { id_hoc_sinh: 1, ho_ten: 'Nguyễn Văn An', quan: 'Quận 1' },
