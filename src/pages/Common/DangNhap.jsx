@@ -133,11 +133,12 @@ function LoginPage({ onLoginSuccess }) {
                 </div>
             )}
             
-            <div className="flex items-center justify-between text-sm">
+            {/* xong hết chức năng chính thì làm */}
+            {/* <div className="flex items-center justify-between text-sm">
                 <a href="#" className="font-medium text-indigo-600 hover:text-indigo-500">
                     Quên mật khẩu?
                 </a>
-            </div>
+            </div> */}
 
             {/* Nút Đăng nhập */}
             <div>
