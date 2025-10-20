@@ -89,11 +89,6 @@ function App() {
               <QuanLyHocSinh />
             </ProtectedRoute>
           } />
-          <Route path="quanlyphuhuynh" element={
-            <ProtectedRoute allowedRoles={['quan_ly']}>
-              <QuanLyPhuHuynh />
-            </ProtectedRoute>
-          } />
           <Route path="taixe" element={
             <ProtectedRoute allowedRoles={['quan_ly']}>
               <QuanLyTaiXe />
@@ -119,12 +114,6 @@ function App() {
               <GuiThongBao />
             </ProtectedRoute>
           } />
-          <Route path="taikhoan" element={
-            <ProtectedRoute allowedRoles={['quan_ly']}>
-              <QuanLyTaiKhoan />
-            </ProtectedRoute>
-          } />
-          
           {/* Routes cho TÀI XẾ */}
           <Route path="diemdanh" element={
             <ProtectedRoute allowedRoles={['tai_xe']}>

@@ -10,7 +10,6 @@ import {
 const adminMenu = [
   { path: "/dashboard", label: "Dashboard", icon: <FaTachometerAlt size={20} /> },
   { path: "/hocsinh", label: "Quản lý học sinh", icon: <FaUserGraduate size={20} /> },
-  { path: "/quanlyphuhuynh", label: "Quản lý phụ huynh", icon: <FaUsers size={20} /> },
   { path: "/taixe", label: "Quản lý tài xế", icon: <FaUserTie size={20} /> },
   { path: "/xebuyt", label: "Quản lý xe buýt", icon: <FaBus size={20} /> },
   { path: "/tuyenduong", label: "Quản lý tuyến đường", icon: <FaRoute size={20} /> },
@@ -18,7 +17,6 @@ const adminMenu = [
   { path: "/lichtrinh", label: "Quản lý lịch trình", icon: <FaCalendarAlt size={20} /> },
   { path: "/theodoixe", label: "Theo dõi xe buýt", icon: <FaMapMarkedAlt size={20} /> },
   { path: "/guithongbaoph", label: "Gửi thông báo", icon: <FaBullhorn size={20} />},
-  { path: "/taikhoan", label: "Quản lý tài khoản", icon: <FaUserCircle size={20} /> }
 ];
 
 // Menu cho Tài xế
