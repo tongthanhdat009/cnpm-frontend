@@ -1,13 +1,17 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import {FaTimes} from 'react-icons/fa';
-const ScheduleModal = ({ isOpen, onClose, onSave, routes, buses, drivers, allStudents, scheduleToEdit }) => {
-    if (!isOpen) return null;
+import React, { useState, useEffect } from 'react';
+import { FaTimes } from 'react-icons/fa';
 
+const ScheduleModal = ({ isOpen, onClose, onSave, routes = [], buses = [], drivers = [], scheduleToEdit }) => {
     const isEditMode = !!scheduleToEdit;
     const [formData, setFormData] = useState({});
     const [selectedRouteId, setSelectedRouteId] = useState('');
-    const [selectedStudentIds, setSelectedStudentIds] = useState([]);
-
+    const statusOptions = [
+        { value: 'cho_khoi_hanh', label: 'Chờ khởi hành' },
+        { value: 'dang_di', label: 'Đang đi' },
+        { value: 'hoan_thanh', label: 'Hoàn thành' },
+        { value: 'da_huy', label: 'Đã hủy' },
+        { value: 'bi_tre', label: 'Bị trễ' }
+    ];
     useEffect(() => {
         if (isEditMode) {
             setFormData({
@@ -17,18 +21,9 @@ const ScheduleModal = ({ isOpen, onClose, onSave, routes, buses, drivers, allStu
         } else {
             setFormData({});
             setSelectedRouteId('');
-            setSelectedStudentIds([]);
         }
-    }, [scheduleToEdit, isOpen]);
+    }, [scheduleToEdit, isOpen, isEditMode]);
     
-    const availableStudents = useMemo(() => {
-        if (!selectedRouteId || isEditMode) return [];
-        const selectedRoute = routes.find(r => r.id_tuyen_duong === parseInt(selectedRouteId));
-        if (!selectedRoute) return [];
-        // Sửa lỗi: Đảm bảo allStudents là một mảng trước khi filter
-        return (allStudents || []).filter(student => selectedRoute.quan.includes(student.quan));
-    }, [selectedRouteId, routes, allStudents, isEditMode]);
-
     const handleFormChange = (e) => {
         const { name, value } = e.target;
         setFormData(prev => ({ ...prev, [name]: value }));
@@ -36,15 +31,8 @@ const ScheduleModal = ({ isOpen, onClose, onSave, routes, buses, drivers, allStu
 
     const handleRouteChange = (e) => {
         setSelectedRouteId(e.target.value);
-        setSelectedStudentIds([]);
     };
     
-    const handleStudentSelect = (studentId) => {
-        setSelectedStudentIds(prev => 
-            prev.includes(studentId) ? prev.filter(id => id !== studentId) : [...prev, studentId]
-        );
-    };
-
     const handleSubmit = (event) => {
       event.preventDefault();
       if (isEditMode) {
@@ -61,7 +49,6 @@ const ScheduleModal = ({ isOpen, onClose, onSave, routes, buses, drivers, allStu
             id_xe_buyt: parseInt(formEl.id_xe_buyt.value),
             id_tai_xe: parseInt(formEl.id_tai_xe.value),
             gio_khoi_hanh: formEl.gio_khoi_hanh.value,
-            hoc_sinh_ids: selectedStudentIds
         };
         const startDate = new Date(formEl.ngay_bat_dau.value);
         const endDate = new Date(formEl.ngay_ket_thuc.value);
@@ -84,8 +71,10 @@ const ScheduleModal = ({ isOpen, onClose, onSave, routes, buses, drivers, allStu
         const inputClasses = "mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500";
         const labelClasses = "block text-sm font-medium text-gray-700";
     
+    if (!isOpen) return null;
+
         return (
-            <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50 p-4">
+            <div className="fixed inset-0 flex justify-center items-center z-50 p-4">
               <div className="bg-white p-6 rounded-lg shadow-2xl w-full max-w-lg max-h-[95vh] flex flex-col">
                 <div className="flex-shrink-0 flex justify-between items-center mb-4 pb-4 border-b">
                   <h2 className="text-2xl font-bold text-gray-800">{isEditMode ? 'Chỉnh Sửa Lịch Trình' : 'Tạo Lịch Trình Lặp Lại'}</h2>
@@ -99,6 +88,7 @@ const ScheduleModal = ({ isOpen, onClose, onSave, routes, buses, drivers, allStu
                     )}
                     <div><label className={labelClasses}>Xe buýt</label><select name="id_xe_buyt" value={formData.id_xe_buyt || ''} onChange={handleFormChange} required className={inputClasses}>{buses.map(b => <option key={b.id_xe_buyt} value={b.id_xe_buyt}>{b.bien_so_xe}</option>)}</select></div>
                     <div><label className={labelClasses}>Tài xế</label><select name="id_tai_xe" value={formData.id_tai_xe || ''} onChange={handleFormChange} required className={inputClasses}>{drivers.map(d => <option key={d.id_nguoi_dung} value={d.id_nguoi_dung}>{d.ho_ten}</option>)}</select></div>
+                    <div><label className={labelClasses}>Trạng thái</label><select name="trang_thai" value={formData.trang_thai || ''} onChange={handleFormChange} required className={inputClasses}>{statusOptions.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}</select></div>
                     
                     {!isEditMode && (
                         <>
@@ -111,22 +101,6 @@ const ScheduleModal = ({ isOpen, onClose, onSave, routes, buses, drivers, allStu
                                 <div className="mt-2 flex justify-between items-center gap-1">{daysOfWeek.map(day => (<label key={day.id} className="flex-1 text-center"><input type="checkbox" name={`day-${day.id}`} value={day.id} className="peer hidden"/><span className="block p-2 border rounded-md cursor-pointer peer-checked:bg-indigo-600 peer-checked:text-white peer-checked:font-bold transition-colors">{day.label}</span></label>))}</div>
                             </div>
                             <div><label className={labelClasses}>Giờ khởi hành</label><input type="time" name="gio_khoi_hanh" required className={inputClasses} /></div>
-                            
-                            {/* --- PHẦN THÊM MỚI: CHỌN HỌC SINH --- */}
-                            <div>
-                                <label className={labelClasses}>Phân công học sinh</label>
-                                <div className="mt-2 p-2 border rounded-md max-h-40 overflow-y-auto bg-gray-50 space-y-1">
-                                    {availableStudents.length > 0 ? availableStudents.map(student => (
-                                        <label key={student.id_hoc_sinh} className="flex items-center gap-2 p-1 rounded hover:bg-indigo-100 cursor-pointer">
-                                            <input type="checkbox" 
-                                                className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" 
-                                                checked={selectedStudentIds.includes(student.id_hoc_sinh)}
-                                                onChange={() => handleStudentSelect(student.id_hoc_sinh)} />
-                                            {student.ho_ten}
-                                        </label>
-                                    )) : <p className="text-gray-500 text-sm text-center">Vui lòng chọn tuyến đường để xem học sinh</p>}
-                                </div>
-                            </div>
                         </>
                     )}
                     
