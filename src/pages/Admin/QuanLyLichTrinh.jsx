@@ -4,7 +4,7 @@ import ReactMapGL, { Marker, Source, Layer } from '@goongmaps/goong-map-react';
 import ScheduleModal from '../../components/ScheduleModal';
 import ScheduleDetailModal from '../../components/ScheduleDetailModal';
 import ChuyenDiService from '../../services/chuyenDiService';
-
+import NguoiDungService from '../../services/nguoiDungService';
 // --- COMPONENT CHÍNH QUẢN LÝ LỊCH TRÌNH ---
 function QuanLyLichTrinh() {
 const [schedules, setSchedules] = useState([]);
@@ -14,11 +14,26 @@ const [editingSchedule, setEditingSchedule] = useState(null);
 const [currentDate, setCurrentDate] = useState(new Date());
 const [loading, setLoading] = useState(false);
 const [error, setError] = useState(null);
+const [buses, setBuses] = useState([]);
+const [drivers, setDrivers] = useState([]);
 
 // Fetch dữ liệu chuyến đi từ API
 useEffect(() => {
     fetchChuyenDi();
+    fetchTaiXe();
 }, []);
+
+const fetchTaiXe = async () => {
+    try {
+        const response = await NguoiDungService.getNguoiDungByVaiTro('tai_xe');
+        if (response.success) {
+           setDrivers(response.data);
+           console.log(response.data);
+        }
+    } catch (error) { 
+      console.error('Error fetching tai xe:', error);
+    }
+}
 
 const fetchChuyenDi = async () => {
     try {
