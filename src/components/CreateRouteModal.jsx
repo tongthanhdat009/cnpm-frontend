@@ -4,12 +4,14 @@ import ReactMapGL, { Marker, Source, Layer } from '@goongmaps/goong-map-react';
 import polyline from '@mapbox/polyline';
 import TuyenDuongService from '../services/tuyenDuongService';
 
-const CreateRouteModal = ({ isOpen, onClose, onSave, allStops }) => {
+const CreateRouteModal = ({ isOpen, onClose, onSave, allStops, stopCounts = {} }) => {
   const [routeName, setRouteName] = useState('');
   const [routeDesc, setRouteDesc] = useState('');
   const [routeDistance, setRouteDistance] = useState('');
   const [routeEta, setRouteEta] = useState('');
   const [selectedStops, setSelectedStops] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
 
   const [previewRoute, setPreviewRoute] = useState(null);
   const [viewport, setViewport] = useState({ latitude: 10.7769, longitude: 106.7008, zoom: 12 });
@@ -137,8 +139,8 @@ const CreateRouteModal = ({ isOpen, onClose, onSave, allStops }) => {
     setSelectedStops(newStops);
   };
 
-  const buildRouteData = () => ({
-    ten_tuyen_duong: routeName,
+  const buildRouteData = (nameOverride) => ({
+    ten_tuyen_duong: (nameOverride ?? routeName).trim(),
     mo_ta: routeDesc,
     diem_dung_ids: selectedStops.map(s => s.id_diem_dung),
     quang_duong: routeDistance === '' ? null : Number(routeDistance),
@@ -146,7 +148,18 @@ const CreateRouteModal = ({ isOpen, onClose, onSave, allStops }) => {
   });
 
   const handleCreate = async () => {
-    const base = buildRouteData();
+    const sanitizedName = routeName.trim();
+    if (!sanitizedName) {
+      setErrorMessage('Vui lòng nhập tên tuyến đường.');
+      return;
+    }
+    if (selectedStops.length < 3) {
+      setErrorMessage('Tuyến đường cần ít nhất 3 trạm (bao gồm điểm đầu và điểm cuối).');
+      return;
+    }
+    setErrorMessage('');
+    setLoading(true);
+    const base = buildRouteData(sanitizedName);
     // Build danh sách điểm dừng với so_thu_tu và id_diem_dung
     const tuyen_duong_diem_dung = selectedStops.map((s, idx) => ({ so_thu_tu: idx + 1, id_diem_dung: s.id_diem_dung }));
     const payload = {
@@ -161,12 +174,17 @@ const CreateRouteModal = ({ isOpen, onClose, onSave, allStops }) => {
       if (res && res.success) {
         if (onSave) onSave(res.data);
         onClose();
+        setLoading(false);
+        return;
       } else {
-        console.error('Tạo tuyến đường thất bại:', res?.error);
+        const msg = res?.error || 'Tạo tuyến đường thất bại';
+        setErrorMessage(msg);
       }
     } catch (e) {
       console.error('Lỗi khi gọi API tạo tuyến đường:', e);
+      setErrorMessage(e?.message || 'Lỗi mạng khi tạo tuyến đường');
     }
+    setLoading(false);
   };
 
   const inputClasses = "mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500";
@@ -182,7 +200,7 @@ const CreateRouteModal = ({ isOpen, onClose, onSave, allStops }) => {
           <button onClick={onClose} className="p-2 rounded-full hover:bg-gray-200 transition-colors"><FaTimes size={20} /></button>
         </div>
 
-        <div className="flex-grow grid grid-cols-1 md:grid-cols-2 gap-6 overflow-y-auto pr-2">
+          <div className="flex-grow grid grid-cols-1 md:grid-cols-2 gap-6 overflow-y-auto pr-2">
           <div className="flex flex-col gap-6">
             <div>
               <label className={labelClasses}>Tên tuyến đường</label>
@@ -191,18 +209,6 @@ const CreateRouteModal = ({ isOpen, onClose, onSave, allStops }) => {
             <div>
               <label className={labelClasses}>Mô tả</label>
               <textarea value={routeDesc} onChange={e => setRouteDesc(e.target.value)} rows="3" className={inputClasses}></textarea>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="p-3 bg-gradient-to-r from-green-50 to-white rounded-md border border-green-100">
-                <label className={`${labelClasses} text-green-700`}>Quãng đường</label>
-                <div className="mt-1 text-lg font-semibold text-gray-900">{routeDistance !== '' && routeDistance !== null ? formatDistanceKm(routeDistance) : 'Tự tính'}</div>
-                <div className="text-sm text-gray-500 mt-1">Dài hơn = tuyến phức tạp hơn</div>
-              </div>
-              <div className="p-3 bg-gradient-to-r from-indigo-50 to-white rounded-md border border-indigo-100">
-                <label className={`${labelClasses} text-indigo-700`}>Thời gian dự kiến</label>
-                <div className="mt-1 text-lg font-semibold text-gray-900">{routeEta !== '' && routeEta !== null ? formatDuration(routeEta) : 'Tự tính'}</div>
-                <div className="text-sm text-gray-500 mt-1">Dựa trên lộ trình và mật độ giao thông</div>
-              </div>
             </div>
 
             <div>
@@ -226,45 +232,69 @@ const CreateRouteModal = ({ isOpen, onClose, onSave, allStops }) => {
 
             <div>
               <h3 className="font-semibold mb-2 text-gray-800">Danh sách trạm có sẵn</h3>
-              <div className="p-3 border rounded-md max-h-[200px] overflow-y-auto space-y-2 bg-gray-50">
-                {allStops.map(stop => (
-                  <div key={stop.id_diem_dung} className="p-2 rounded hover:bg-indigo-50 transition-colors">
-                    <label className="flex items-center gap-3 cursor-pointer w-full">
-                      <input
-                        type="checkbox"
-                        className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
-                        checked={Number(stop.id_diem_dung) === 0 || Number(stop.id_diem_dung) === 1 || selectedStops.some(s => s.id_diem_dung === stop.id_diem_dung)}
-                        disabled={Number(stop.id_diem_dung) === 0 || Number(stop.id_diem_dung) === 1}
-                        onChange={() => handleStopSelection(stop)}
-                      />
-                      {stop.ten_diem_dung}
-                    </label>
-                  </div>
-                ))}
+              <div className="border rounded-md">
+                <div className="max-h-[200px] overflow-y-auto space-y-2 bg-gray-50 p-3">
+                  {allStops.map(stop => {
+                    const rawCount = stopCounts?.[stop.id_diem_dung] ?? 0;
+                    const parsedCount = Number(rawCount);
+                    const displayCount = Number.isFinite(parsedCount) ? parsedCount : 0;
+                    return (
+                      <div key={stop.id_diem_dung} className="p-2 rounded hover:bg-indigo-50 transition-colors">
+                        <label className="flex items-center gap-3 cursor-pointer w-full">
+                          <input
+                            type="checkbox"
+                            className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                            checked={Number(stop.id_diem_dung) === 0 || Number(stop.id_diem_dung) === 1 || selectedStops.some(s => s.id_diem_dung === stop.id_diem_dung)}
+                            disabled={Number(stop.id_diem_dung) === 0 || Number(stop.id_diem_dung) === 1}
+                            onChange={() => handleStopSelection(stop)}
+                          />
+                          <span className="flex-1 text-sm">{stop.ten_diem_dung}</span>
+                          <span className="text-xs text-gray-500">({displayCount})</span>
+                        </label>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             </div>
           </div>
 
-          {/* Map */}
-          <div className="relative rounded-lg overflow-hidden border shadow-sm aspect-square w-full self-start min-h-[320px]">
-            <ReactMapGL className="absolute inset-0" width="100%" height="100%" {...viewport} onViewportChange={setViewport} goongApiAccessToken={import.meta.env.VITE_GOONG_MAPTILES_KEY}>
-              {previewRoute && (
-                <Source id="preview-route" type="geojson" data={previewRoute}>
-                  <Layer id="preview-route" type="line" paint={{ 'line-color': '#0d9488', 'line-width': 5 }} />
-                </Source>
-              )}
-              {selectedStops.map((stop, index) => (
-                <Marker key={stop.id_diem_dung} longitude={Number(stop.kinh_do)} latitude={Number(stop.vi_do)}>
-                  <div className="bg-indigo-600 text-white w-7 h-7 rounded-full flex items-center justify-center font-bold text-sm border-2 border-white shadow-lg">{index + 1}</div>
-                </Marker>
-              ))}
-            </ReactMapGL>
+          <div className="flex flex-col gap-4">
+            <div className="relative rounded-lg overflow-hidden border shadow-sm aspect-square w-full self-start min-h-[320px]">
+              <ReactMapGL className="absolute inset-0" width="100%" height="100%" {...viewport} onViewportChange={setViewport} goongApiAccessToken={import.meta.env.VITE_GOONG_MAPTILES_KEY}>
+                {previewRoute && (
+                  <Source id="preview-route" type="geojson" data={previewRoute}>
+                    <Layer id="preview-route" type="line" paint={{ 'line-color': '#0d9488', 'line-width': 5 }} />
+                  </Source>
+                )}
+                {selectedStops.map((stop, index) => (
+                  <Marker key={stop.id_diem_dung} longitude={Number(stop.kinh_do)} latitude={Number(stop.vi_do)}>
+                    <div className="bg-indigo-600 text-white w-7 h-7 rounded-full flex items-center justify-center font-bold text-sm border-2 border-white shadow-lg">{index + 1}</div>
+                  </Marker>
+                ))}
+              </ReactMapGL>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="p-3 bg-gradient-to-r from-green-50 to-white rounded-md border border-green-100">
+                <label className={`${labelClasses} text-green-700`}>Quãng đường</label>
+                <div className="mt-1 text-lg font-semibold text-gray-900">{routeDistance !== '' && routeDistance !== null ? formatDistanceKm(routeDistance) : 'Tự tính'}</div>
+                <div className="text-xs text-gray-500 mt-1">Tổng chiều dài tuyến</div>
+              </div>
+              <div className="p-3 bg-gradient-to-r from-indigo-50 to-white rounded-md border border-indigo-100">
+                <label className={`${labelClasses} text-indigo-700`}>Thời gian dự kiến</label>
+                <div className="mt-1 text-lg font-semibold text-gray-900">{routeEta !== '' && routeEta !== null ? formatDuration(routeEta) : 'Tự tính'}</div>
+                <div className="text-xs text-gray-500 mt-1">Ước tính hoàn thành chuyến</div>
+              </div>
+            </div>
           </div>
         </div>
 
-        <div className="mt-6 flex justify-end gap-4 pt-4 border-t">
-          <button type="button" onClick={onClose} className={btnSecondaryClasses}>Hủy</button>
-          <button type="button" onClick={handleCreate} className={btnPrimaryClasses}>Tạo tuyến đường</button>
+        <div className="mt-6 flex items-center justify-between gap-4 pt-4 border-t">
+          <div className="text-sm text-red-600">{errorMessage}</div>
+          <div className="flex items-center gap-4">
+            <button type="button" onClick={onClose} className={btnSecondaryClasses} disabled={loading}>Hủy</button>
+            <button type="button" onClick={handleCreate} className={btnPrimaryClasses} disabled={loading}>{loading ? 'Đang tạo...' : 'Tạo tuyến đường'}</button>
+          </div>
         </div>
       </div>
     </div>

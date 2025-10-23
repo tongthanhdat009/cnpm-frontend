@@ -18,6 +18,18 @@ const DiemDungService = {
         }
     },
 
+    // Lấy số lượng học sinh chưa phân công theo từng điểm dừng
+    getUnassignedCounts: async () => {
+        try {
+            const response = await apiClient.get('/api/v1/diem-dung/unassigned-counts');
+            const data = Array.isArray(response.data) ? response.data : [];
+            return { success: true, data };
+        } catch (error) {
+            console.error('Error fetching unassigned counts:', error);
+            return { success: false, error: error.response?.data?.message || 'Lỗi khi lấy số lượng học sinh chưa phân công' };
+        }
+    },
+
     // Lấy chi tiết điểm dừng theo ID
     getDiemDungById: async (id) => {
         if (!id) return { success: false, error: 'Missing id parameter' };

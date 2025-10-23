@@ -24,4 +24,4 @@ const HocSinhService = {
     },
 };
 
-export default HocSinhServce;
+export default HocSinhService;
