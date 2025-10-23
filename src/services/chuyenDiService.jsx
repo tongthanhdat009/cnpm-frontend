@@ -95,12 +95,12 @@ const ChuyenDiService = {
 
     /**
      * Tạo chuyến đi mới
-     * @param {Object} data - Dữ liệu chuyến đi
-     * @returns {Promise} Chuyến đi vừa tạo
+     * @param {Object} chuyenDiData - Dữ liệu chuyến đi
+     * @returns {Promise} Chuyến đi đã tạo
      */
-    createChuyenDi: async (data) => {
+    createChuyenDi: async (chuyenDiData) => {
         try {
-            const response = await apiClient.post('/api/v1/chuyen-di', data);
+            const response = await apiClient.post('/api/v1/chuyen-di', chuyenDiData);
             return response.data;
         } catch (error) {
             console.error('Error creating chuyen di:', error);
@@ -109,47 +109,17 @@ const ChuyenDiService = {
     },
 
     /**
-     * Cập nhật trạng thái chuyến đi
+     * Cập nhật chuyến đi
      * @param {number} id - ID chuyến đi
-     * @param {string} trangThai - Trạng thái mới
+     * @param {Object} chuyenDiData - Dữ liệu cập nhật
      * @returns {Promise} Chuyến đi đã cập nhật
      */
-    updateTrangThai: async (id, trangThai) => {
+    updateChuyenDi: async (id, chuyenDiData) => {
         try {
-            const response = await apiClient.patch(`/api/v1/chuyen-di/${id}/trang-thai`, { trang_thai: trangThai });
+            const response = await apiClient.put(`/api/v1/chuyen-di/${id}`, chuyenDiData);
             return response.data;
         } catch (error) {
-            console.error('Error updating trang thai:', error);
-            throw error;
-        }
-    },
-
-    /**
-     * Bắt đầu chuyến đi
-     * @param {number} id - ID chuyến đi
-     * @returns {Promise} Chuyến đi đã cập nhật
-     */
-    batDauChuyenDi: async (id) => {
-        try {
-            const response = await apiClient.post(`/api/v1/chuyen-di/${id}/bat-dau`);
-            return response.data;
-        } catch (error) {
-            console.error('Error starting chuyen di:', error);
-            throw error;
-        }
-    },
-
-    /**
-     * Kết thúc chuyến đi
-     * @param {number} id - ID chuyến đi
-     * @returns {Promise} Chuyến đi đã cập nhật
-     */
-    ketThucChuyenDi: async (id) => {
-        try {
-            const response = await apiClient.post(`/api/v1/chuyen-di/${id}/ket-thuc`);
-            return response.data;
-        } catch (error) {
-            console.error('Error ending chuyen di:', error);
+            console.error(`Error updating chuyen di ${id}:`, error);
             throw error;
         }
     },
@@ -164,10 +134,26 @@ const ChuyenDiService = {
             const response = await apiClient.delete(`/api/v1/chuyen-di/${id}`);
             return response.data;
         } catch (error) {
-            console.error('Error deleting chuyen di:', error);
+            console.error(`Error deleting chuyen di ${id}:`, error);
             throw error;
         }
-    }
+    },
+
+    /**
+     * Tạo chuyến đi lặp lại
+     * @param {Object} recurringData - Dữ liệu chuyến đi lặp lại
+     * @returns {Promise} Kết quả tạo chuyến đi
+     */
+    createRecurringChuyenDi: async (recurringData) => {
+        try {
+            const response = await apiClient.post('/api/v1/chuyen-di', recurringData);
+            return response.data;
+        } catch (error) {
+            console.error('Error creating recurring chuyen di:', error);
+            throw error;
+        }
+    },
+    
 };
 
 export default ChuyenDiService;

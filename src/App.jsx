@@ -5,7 +5,6 @@ import Layout from "./components/Layout";
 import LoginPage from "./pages/Common/DangNhap";
 import Dashboard from "./pages/Admin/Dashboard";
 import QuanLyHocSinh from "./pages/Admin/QuanLyHocSinh";
-import QuanLyPhuHuynh from "./pages/Admin/QuanLyPhuHuynh";
 import QuanLyTaiXe from "./pages/Admin/QuanLyTaiXe";
 import QuanLyXeBus from "./pages/Admin/QuanLyXeBus";
 import TheoDoiXeBuyt from "./pages/Parent/TheoDoiXeBuyt";
@@ -17,7 +16,6 @@ import QuanLyTuyenDuong from "./pages/Admin/QuanLyTuyenDuong";
 import ThongTinPhuHuynh from "./pages/Parent/ThongTinPhuHuynh";
 import GuiThongBao from "./pages/Admin/GuiThongBao";
 import DiemDanhHocSinh from "./pages/Driver/DiemDanhHocSinh";
-import QuanLyTaiKhoan from "./pages/Admin/QuanLyTaiKhoan";
 
 function App() {
   const [currentUser, setCurrentUser] = useState(null);
