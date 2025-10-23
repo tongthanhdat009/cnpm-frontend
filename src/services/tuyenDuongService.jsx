@@ -22,6 +22,18 @@ const TuyenDuongService = {
             return { success: false, error: error.response?.data?.message || 'Lỗi khi lấy thông tin tuyến đường' };
         }
     },
+
+    // Tạo tuyến đường mới
+    createTuyenDuong: async (payload) => {
+        try {
+            console.log('Creating tuyen duong with payload:', payload);
+            const response = await apiClient.post('/api/v1/tuyen-duong', payload);
+            return { success: true, data: response.data };
+        } catch (error) {
+            console.error('Error creating tuyen duong:', error);
+            return { success: false, error: error.response?.data?.message || 'Lỗi khi tạo tuyến đường' };
+        }
+    },
 };
 
 export default TuyenDuongService;
