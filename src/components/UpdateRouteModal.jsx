@@ -3,6 +3,7 @@ import { FaTimes, FaArrowUp, FaArrowDown, FaGripVertical } from 'react-icons/fa'
 import ReactMapGL, { Marker, Source, Layer } from '@goongmaps/goong-map-react';
 import polyline from '@mapbox/polyline';
 import DiemDungService from '../services/diemDungService';
+import TuyenDuongService from '../services/tuyenDuongService';
 
 const UpdateRouteModal = ({ isOpen, onClose, onSave, allStops, routeToEdit, readOnly = false, stopCounts = {} }) => {
   const [routeName, setRouteName] = useState('');
@@ -193,16 +194,29 @@ const UpdateRouteModal = ({ isOpen, onClose, onSave, allStops, routeToEdit, read
     setLoading(true);
     try {
       const payload = buildRouteData(sanitizedName);
-      const res = await onSave(payload);
-      // If onSave returns a result-like object, surface errors
-      if (res && res.success === false) {
-        setErrorMessage(res.error || 'Cập nhật thất bại');
+      // Call the backend PUT API to update the route
+      const id = payload?.id_tuyen_duong || routeToEdit?.id_tuyen_duong || routeToEdit?.id;
+      if (!id) {
+        setErrorMessage('Thiếu ID tuyến đường để cập nhật.');
+      } else {
+        const res = await TuyenDuongService.updateTuyenDuong(id, payload);
+        if (!res || !res.success) {
+          setErrorMessage(res?.error || 'Cập nhật thất bại');
+        } else {
+          // notify parent if provided
+          try { if (onSave) onSave(res.data || payload); } catch (e) { /* ignore parent errors */ }
+          setErrorMessage('Cập nhật thành công');
+        }
       }
     } catch (e) {
       console.error('Lỗi khi cập nhật tuyến đường:', e);
       setErrorMessage(e?.message || 'Lỗi mạng khi cập nhật tuyến đường');
     }
     setLoading(false);
+    // Close modal after a short delay so user sees the message
+    setTimeout(() => {
+      onClose && onClose();
+    }, 800);
   };
 
   const inputClasses = "mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500";

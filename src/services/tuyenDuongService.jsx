@@ -86,6 +86,17 @@ const TuyenDuongService = {
             return { success: false, error: error.response?.data?.message || 'Lỗi khi huỷ phân công học sinh' };
         }
     },
+    // Cập nhật tuyến đường (PUT /api/v1/tuyen-duong/:id)
+    updateTuyenDuong: async (id, payload) => {
+        if (id == null) return { success: false, error: 'Missing id parameter' };
+        try {
+            const response = await apiClient.put(`/api/v1/tuyen-duong/${id}`, payload);
+            return { success: true, data: response.data };
+        } catch (error) {
+            console.error('Error updating tuyen duong:', error);
+            return { success: false, error: error.response?.data?.message || 'Lỗi khi cập nhật tuyến đường' };
+        }
+    },
 };
 
 export default TuyenDuongService;
