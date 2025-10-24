@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { FaPlus, FaEye, FaTrash } from 'react-icons/fa';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { FaPlus, FaEye, FaTrash, FaSearch, FaEdit } from 'react-icons/fa';
 import CreateRouteModal from '../../components/CreateRouteModal';
 import UpdateRouteModal from '../../components/UpdateRouteModal';
 import AssignedStudentsModal from '../../components/AssignedStudentsModal';
@@ -80,6 +80,18 @@ function QuanLyTuyenDuong() {
     setRouteToEdit(null);
     setIsModalOpen(true);
   };
+
+  const [query, setQuery] = useState('');
+
+  const filteredRoutes = useMemo(() => {
+    const q = String(query || '').trim().toLowerCase();
+    if (!q) return routes || [];
+    return (routes || []).filter(r => {
+      const name = (r.ten_tuyen_duong || r.name || '').toString().toLowerCase();
+      const id = (r.id_tuyen_duong || r.id || '').toString().toLowerCase();
+      return name.includes(q) || id.includes(q);
+    });
+  }, [routes, query]);
 
   const handleEdit = (route) => {
     setRouteToEdit(route);
@@ -207,15 +219,29 @@ function QuanLyTuyenDuong() {
       ))}
 
       <div className="bg-white p-6 rounded-lg shadow-md">
-        <div className="flex justify-between items-center mb-6">
-          <h1 className="text-2xl font-bold text-gray-800">Quản lý tuyến đường</h1>
-          <button
-            onClick={handleAddNew}
-            className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white font-semibold rounded-lg shadow-md hover:bg-indigo-700 transition-colors"
-          >
-            <FaPlus />
-            Tạo tuyến đường
-          </button>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+          <div className="flex items-center gap-4 w-full sm:w-auto">
+            <h1 className="text-2xl font-bold text-gray-800">Quản lý tuyến đường</h1>
+            <div className="relative hidden sm:block">
+              <input value={query} onChange={e => setQuery(e.target.value)} placeholder="Tìm theo tên hoặc ID..." className="ml-4 pl-10 pr-3 py-2 border rounded w-72 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+              <div className="absolute left-6 top-1/2 -translate-y-1/2 text-gray-400"><FaSearch/></div>
+            </div>
+          </div>
+          <div className="flex items-center gap-4">
+            <div className="block sm:hidden">
+              <div className="relative">
+                <input value={query} onChange={e => setQuery(e.target.value)} placeholder="Tìm..." className="pl-8 pr-3 py-2 border rounded w-48 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                <div className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-400"><FaSearch/></div>
+              </div>
+            </div>
+            <button
+              onClick={handleAddNew}
+              className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white font-semibold rounded-lg shadow-md hover:bg-indigo-700 transition-colors"
+            >
+              <FaPlus />
+              Tạo tuyến đường
+            </button>
+          </div>
         </div>
 
         <div className="overflow-x-auto">
@@ -233,7 +259,7 @@ function QuanLyTuyenDuong() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
-              {routes.map((route) => (
+              {filteredRoutes.map((route) => (
                 <tr key={route.id_tuyen_duong} className="hover:bg-gray-50 transition-colors">
                   <td className="py-4 px-4 text-sm text-gray-500">{route.id_tuyen_duong}</td>
                   <td className="py-4 px-4 text-sm text-gray-900 font-medium">{route.ten_tuyen_duong}</td>
@@ -250,9 +276,9 @@ function QuanLyTuyenDuong() {
                     <button
                       onClick={() => handleEdit(route)}
                       className="text-indigo-600 hover:text-indigo-900"
-                      title="Xem chi tiết / Sửa"
+                      title="Sửa tuyến"
                     >
-                      <FaEye size={18} />
+                      <FaEdit size={18} />
                     </button>
                     <button
                       onClick={() => handleViewAssigned(route)}
