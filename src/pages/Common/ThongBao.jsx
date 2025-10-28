@@ -1,42 +1,7 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { FaBell, FaInfoCircle, FaCheckCircle, FaExclamationTriangle, FaTrash } from 'react-icons/fa';
 
-// --- DỮ LIỆU MẪU (Mô phỏng các loại thông báo khác nhau) ---
-const sampleNotifications = [
-  { 
-    id: 1, 
-    type: 'chuyen_di', 
-    title: 'Bé Nguyễn Văn An đã lên xe an toàn!', 
-    message: 'Tài xế Trần Văn Sáu đã xác nhận đón bé An lên xe 51B-123.45 tại điểm đón Nhà văn hóa Thanh Niên.',
-    time: '2025-09-29T06:45:00',
-    read: false 
-  },
-  { 
-    id: 2, 
-    type: 'canh_bao', 
-    title: 'Cảnh báo: Xe 51C-678.90 có thể đến trễ', 
-    message: 'Do tình hình giao thông, xe buýt có thể đến điểm đón của bé Trần Thị Bích trễ khoảng 5-10 phút.',
-    time: '2025-09-29T06:20:00',
-    read: false 
-  },
-  { 
-    id: 3, 
-    type: 'chuyen_di', 
-    title: 'Bé Lê Văn Cường đã về nhà an toàn', 
-    message: 'Tài xế đã xác nhận trả bé Cường tại điểm trả Ngã tư Hàng Xanh.',
-    time: '2025-09-28T17:15:00',
-    read: true 
-  },
-  { 
-    id: 4, 
-    type: 'he_thong', 
-    title: 'Thông báo nghỉ lễ 30/04', 
-    message: 'Nhà trường xin thông báo lịch nghỉ lễ từ ngày 30/04 đến hết ngày 01/05. Dịch vụ xe buýt sẽ hoạt động lại vào ngày 02/05.',
-    time: '2025-04-25T10:00:00',
-    read: true 
-  },
-];
-// --- KẾT THÚC DỮ LIỆU MẪU ---
+import {getNotificationsByUserId} from '../../services/thongBaoService';
 
 // Lấy icon và màu sắc dựa trên loại thông báo
 const getNotificationIcon = (type) => {
@@ -50,8 +15,54 @@ const getNotificationIcon = (type) => {
 
 
 function ThongBao() {
-  const [notifications, setNotifications] = useState(sampleNotifications);
+  const [notifications, setNotifications] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [filter, setFilter] = useState('all'); // 'all', 'unread'
+
+  // Fetch thông báo từ API khi component mount
+  useEffect(() => {
+    const fetchNotifications = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        // Lấy thông tin user từ localStorage
+        const userStr = localStorage.getItem('user');
+        if (!userStr) {
+          throw new Error('Vui lòng đăng nhập để xem thông báo');
+        }
+        
+        const user = JSON.parse(userStr);
+        const userId = user.id_nguoi_dung;
+        
+        if (!userId) {
+          throw new Error('Không tìm thấy thông tin người dùng');
+        }
+
+        // Gọi API lấy thông báo theo userId
+        const data = await getNotificationsByUserId(userId);
+        
+        // Map data từ database sang format của UI
+        const mappedNotifications = (data || []).map(item => ({
+          id: item.id_thong_bao,
+          title: item.tieu_de,
+          message: item.noi_dung,
+          time: item.thoi_gian,
+          read: item.da_xem,
+          type: item.loai_thong_bao || 'he_thong',
+          sender: item.nguoi_dung_thong_bao_id_nguoi_guiTonguoi_dung?.ho_ten
+        }));
+        
+        setNotifications(mappedNotifications);
+      } catch (err) {
+        console.error("Lỗi khi fetch thông báo:", err);
+        setError(err.message || 'Đã xảy ra lỗi khi tải thông báo');
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchNotifications();
+  }, []);
 
   const filteredNotifications = useMemo(() => {
     if (filter === 'unread') {
@@ -62,14 +73,18 @@ function ThongBao() {
 
   const unreadCount = notifications.filter(n => !n.read).length;
 
-  const handleMarkAsRead = (id) => {
-    setNotifications(
-      notifications.map(n => n.id === id ? { ...n, read: true } : n)
+  const handleMarkAsRead = async (id) => {
+    setNotifications(prevNotifications =>
+      prevNotifications.map(n => n.id === id ? { ...n, read: true } : n)
     );
+    // TODO: Gọi API để cập nhật trạng thái đã đọc trên server
   };
   
-  const handleDelete = (id) => {
-    setNotifications(notifications.filter(n => n.id !== id));
+  const handleDelete = async (id) => {
+    setNotifications(prevNotifications =>
+      prevNotifications.filter(n => n.id !== id)
+    );
+    // TODO: Gọi API để xóa thông báo trên server
   }
 
   // Định dạng thời gian cho dễ đọc
@@ -104,48 +119,77 @@ function ThongBao() {
         </div>
       </div>
 
+      {/* Loading State */}
+      {loading && (
+        <div className="flex-grow flex items-center justify-center">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto mb-4"></div>
+            <p className="text-gray-600">Đang tải thông báo...</p>
+          </div>
+        </div>
+      )}
+
+      {/* Error State */}
+      {error && !loading && (
+        <div className="flex-grow flex items-center justify-center">
+          <div className="text-center text-red-500">
+            <FaExclamationTriangle size={48} className="mx-auto mb-4"/>
+            <p>{error}</p>
+          </div>
+        </div>
+      )}
+
       {/* Danh sách thông báo */}
-      <div className="flex-grow overflow-y-auto pr-2">
-        {filteredNotifications.length > 0 ? (
-            <div className="space-y-4">
-            {filteredNotifications.map(notification => (
-                <div 
-                    key={notification.id} 
-                    className={`p-4 rounded-lg border-l-4 relative group ${
-                        notification.read ? 'bg-gray-50' : 'bg-blue-50 border-indigo-500'
-                    }`}
-                >
-                    <div className="flex items-start gap-4">
-                        <div className="flex-shrink-0 mt-1">
-                            {getNotificationIcon(notification.type)}
-                        </div>
-                        <div className="flex-grow">
-                            <h3 className={`font-bold ${notification.read ? 'text-gray-700' : 'text-gray-900'}`}>{notification.title}</h3>
-                            <p className="text-sm text-gray-600 mt-1">{notification.message}</p>
-                            <p className="text-xs text-gray-400 mt-2">{formatTime(notification.time)}</p>
-                        </div>
-                    </div>
-                    {/* Nút hành động hiện ra khi hover */}
-                    <div className="absolute top-2 right-2 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                        {!notification.read && (
-                            <button onClick={() => handleMarkAsRead(notification.id)} className="p-2 text-xs bg-white rounded-full shadow hover:bg-gray-100" title="Đánh dấu đã đọc">
-                                <FaCheckCircle className="text-green-500"/>
-                            </button>
-                        )}
-                        <button onClick={() => handleDelete(notification.id)} className="p-2 text-xs bg-white rounded-full shadow hover:bg-gray-100" title="Xóa thông báo">
-                            <FaTrash className="text-red-500"/>
-                        </button>
-                    </div>
-                </div>
-            ))}
-            </div>
-        ) : (
-            <div className="text-center py-20 text-gray-500">
-                <FaBell size={48} className="mx-auto mb-4"/>
-                <p>Không có thông báo nào.</p>
-            </div>
-        )}
-      </div>
+      {!loading && !error && (
+        <div className="flex-grow overflow-y-auto pr-2">
+          {filteredNotifications.length > 0 ? (
+              <div className="space-y-4">
+              {filteredNotifications.map(notification => (
+                  <div 
+                      key={notification.id} 
+                      className={`p-4 rounded-lg border-l-4 relative group ${
+                          notification.read ? 'bg-gray-50 border-gray-300' : 'bg-blue-50 border-indigo-500'
+                      }`}
+                  >
+                      <div className="flex items-start gap-4">
+                          <div className="flex-shrink-0 mt-1">
+                              {getNotificationIcon(notification.type)}
+                          </div>
+                          <div className="flex-grow">
+                              <h3 className={`font-bold ${notification.read ? 'text-gray-700' : 'text-gray-900'}`}>
+                                {notification.title}
+                              </h3>
+                              <p className="text-sm text-gray-600 mt-1">{notification.message}</p>
+                              <div className="flex items-center gap-2 mt-2">
+                                <p className="text-xs text-gray-400">{formatTime(notification.time)}</p>
+                                {notification.sender && (
+                                  <span className="text-xs text-gray-500">• Từ: {notification.sender}</span>
+                                )}
+                              </div>
+                          </div>
+                      </div>
+                      {/* Nút hành động hiện ra khi hover */}
+                      <div className="absolute top-2 right-2 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                          {!notification.read && (
+                              <button onClick={() => handleMarkAsRead(notification.id)} className="p-2 text-xs bg-white rounded-full shadow hover:bg-gray-100" title="Đánh dấu đã đọc">
+                                  <FaCheckCircle className="text-green-500"/>
+                              </button>
+                          )}
+                          <button onClick={() => handleDelete(notification.id)} className="p-2 text-xs bg-white rounded-full shadow hover:bg-gray-100" title="Xóa thông báo">
+                              <FaTrash className="text-red-500"/>
+                          </button>
+                      </div>
+                  </div>
+              ))}
+              </div>
+          ) : (
+              <div className="text-center py-20 text-gray-500">
+                  <FaBell size={48} className="mx-auto mb-4"/>
+                  <p>Không có thông báo nào.</p>
+              </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
