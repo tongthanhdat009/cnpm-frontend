@@ -53,7 +53,6 @@ const fetchChuyenDi = async () => {
                     diem_danh_chuyen_di: item.diem_danh_chuyen_di
                 };
             });
-            
             setSchedules(formattedSchedules);
         }
     } catch (err) {
@@ -92,16 +91,23 @@ const handleSaveSchedule = () => {
 };
 
 const handleDeleteSchedule = async (id) => {
-    if (!window.confirm('Bạn có chắc chắn muốn xóa chuyến đi này?')) return;
-    
-    try {
-        await ChuyenDiService.deleteChuyenDi(id);
-        // Refresh data
-        fetchChuyenDi();
-    } catch (err) {
-        alert('Không thể xóa chuyến đi. Vui lòng thử lại.');
-        console.error(err);
-    }
+  if (!window.confirm('Bạn có chắc chắn muốn xóa chuyến đi này?')) return;
+  
+  try {
+      const response = await ChuyenDiService.deleteChuyenDi(id);
+      
+      if (response.success) {
+          alert('Xóa chuyến đi thành công!');
+          // Refresh data
+          fetchChuyenDi();
+      } else {
+          alert(response.message || 'Không thể xóa chuyến đi. Vui lòng thử lại.');
+      }
+  } catch (err) {
+      const errorMessage = err.response?.data?.message || err.message || 'Không thể xóa chuyến đi. Vui lòng thử lại.';
+      alert(errorMessage);
+      // console.error(err);
+  }
 };
 
 return (
@@ -216,7 +222,7 @@ return (
 
                         return (
                           <div
-                            key={schedule.id_lich_trinh}
+                            key={schedule.id_chuyen_di}
                             className="bg-white border-2 border-indigo-200 p-3 rounded-lg text-xs hover:shadow-lg hover:border-indigo-400 transition-all group relative"
                           >
                             {/* Nút sửa/xóa */}
@@ -234,7 +240,7 @@ return (
                               <button 
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  handleDeleteSchedule(schedule.id_lich_trinh);
+                                  handleDeleteSchedule(schedule.id_chuyen_di);
                                 }} 
                                 className='p-1.5 bg-red-500 text-white rounded hover:bg-red-600 transition-colors'
                                 title="Xóa"
