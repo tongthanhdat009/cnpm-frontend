@@ -50,7 +50,7 @@ function ThongBao() {
           time: item.thoi_gian,
           read: item.da_xem,
           type: item.loai_thong_bao || 'he_thong',
-          sender: item.nguoi_dung_thong_bao_id_nguoi_guiTonguoi_dung?.ho_ten
+          sender: `${item.nguoi_dung_thong_bao_id_nguoi_guiTonguoi_dung?.ho_ten} (${item.nguoi_dung_thong_bao_id_nguoi_guiTonguoi_dung?.vai_tro})`
         }));
         
         setNotifications(mappedNotifications);
