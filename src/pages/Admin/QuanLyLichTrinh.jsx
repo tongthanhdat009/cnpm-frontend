@@ -1,17 +1,17 @@
 import React, { useState, useEffect } from 'react';
-import { FaPlus, FaTimes, FaEdit, FaTrash, FaBus, FaUserTie, FaChevronLeft, FaChevronRight, FaUsers, FaInfoCircle, FaRoute, FaSpinner } from 'react-icons/fa';
+import { useNavigate } from 'react-router-dom';
+import { FaPlus, FaEdit, FaTrash, FaBus, FaUserTie, FaChevronLeft, FaChevronRight, FaUsers, FaRoute, FaSpinner } from 'react-icons/fa';
 import ScheduleModal from '../../components/ScheduleModal';
-import ScheduleDetailModal from '../../components/ScheduleDetailModal';
 import ChuyenDiService from '../../services/chuyenDiService';
 // --- COMPONENT CHÍNH QUẢN LÝ LỊCH TRÌNH ---
 function QuanLyLichTrinh() {
 const [schedules, setSchedules] = useState([]);
 const [isModalOpen, setIsModalOpen] = useState(false);
-const [viewingSchedule, setViewingSchedule] = useState(null);
 const [editingSchedule, setEditingSchedule] = useState(null);
 const [currentDate, setCurrentDate] = useState(new Date());
 const [loading, setLoading] = useState(false);
 const [error, setError] = useState(null);
+const navigate = useNavigate();
 
 // Fetch dữ liệu chuyến đi từ API
 useEffect(() => {
@@ -118,12 +118,6 @@ return (
       onSave={handleSaveSchedule}
       scheduleToEdit={editingSchedule}
     />
-    {viewingSchedule && ( 
-      <ScheduleDetailModal 
-        schedule={viewingSchedule} 
-        onClose={() => setViewingSchedule(null)} 
-      /> 
-    )}
 
     <div className="bg-white p-6 rounded-lg shadow-md h-full flex flex-col">
       {/* Header */}
@@ -250,7 +244,7 @@ return (
                             </div>
 
                             {/* Nội dung */}
-                            <div onClick={() => setViewingSchedule(schedule)} className="cursor-pointer">
+                            <div onClick={() => navigate(`/lichtrinh/${schedule.id_chuyen_di}`)} className="cursor-pointer">
                               {/* Giờ khởi hành và trạng thái */}
                               <div className="flex items-center justify-between mb-2 pr-12">
                                 <span className="text-lg font-bold text-indigo-600">

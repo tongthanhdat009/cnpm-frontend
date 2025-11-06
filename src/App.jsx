@@ -11,6 +11,7 @@ import QuanLyXeBus from "./pages/Admin/QuanLyXeBus";
 import TheoDoiXeBuyt from "./pages/Parent/TheoDoiXeBuyt";
 import ThongBao from "./pages/Common/ThongBao";
 import QuanLyLichTrinh from "./pages/Admin/QuanLyLichTrinh";
+import ChiTietChuyenDi from "./pages/Admin/ChiTietChuyenDi";
 import XemLichTrinh from "./pages/Driver/XemLichTrinh";
 import QuanLyTram from "./pages/Admin/QuanLyTram";
 import QuanLyTuyenDuong from "./pages/Admin/QuanLyTuyenDuong";
@@ -213,6 +214,11 @@ function App() {
           <Route path="lichtrinh" element={
             <ProtectedRoute allowedRoles={['quan_ly', 'tai_xe']}>
               {currentUser?.vai_tro === 'quan_ly' ? <QuanLyLichTrinh /> : <XemLichTrinh />}
+            </ProtectedRoute>
+          } />
+          <Route path="lichtrinh/:scheduleId" element={
+            <ProtectedRoute allowedRoles={['quan_ly']}>
+              <ChiTietChuyenDi />
             </ProtectedRoute>
           } />
 

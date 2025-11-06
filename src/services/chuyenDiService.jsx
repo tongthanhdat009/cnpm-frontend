@@ -125,6 +125,22 @@ const ChuyenDiService = {
     },
 
     /**
+     * Gửi cảnh báo sự cố cho chuyến đi
+     * @param {number} id - ID chuyến đi
+     * @param {Object} payload - Dữ liệu cảnh báo
+     * @returns {Promise} Kết quả cảnh báo
+     */
+    sendIncidentWarning: async (id, payload) => {
+        try {
+            const response = await apiClient.post(`/api/v1/chuyen-di/${id}/canh-bao-su-co`, payload);
+            return response.data;
+        } catch (error) {
+            console.error(`Error sending incident warning for chuyen di ${id}:`, error);
+            throw error;
+        }
+    },
+
+    /**
      * Xóa chuyến đi
      * @param {number} id - ID chuyến đi
      * @returns {Promise} Kết quả xóa
@@ -135,6 +151,44 @@ const ChuyenDiService = {
             return response.data;
         } catch (error) {
             console.error(`Error deleting chuyen di ${id}:`, error);
+            throw error;
+        }
+    },
+
+    /**
+     * Cập nhật trạng thái điểm danh của học sinh trong chuyến đi
+     * @param {number} attendanceId - ID của bản ghi điểm danh
+     * @param {string} trangThai - Trạng thái mới (da_don | da_tra | vang_mat | chua_don)
+     * @returns {Promise} Kết quả cập nhật
+     */
+    updateTrangThaiDiemDanh: async (attendanceId, trangThai) => {
+        try {
+            // PATCH /api/v1/diem-danh/:id { trang_thai }
+            const response = await apiClient.patch(`/api/v1/diem-danh/${attendanceId}`, {
+                trang_thai: trangThai
+            });
+            return response.data;
+        } catch (error) {
+            console.error(`Error updating attendance ${attendanceId}:`, error);
+            throw error;
+        }
+    },
+
+    /**
+     * Cập nhật trạng thái chuyến đi (đang đi | hoàn thành)
+     * @param {number} id - ID chuyến đi
+     * @param {string} trangThai - 'dang_di' | 'hoan_thanh'
+     * @returns {Promise} Kết quả cập nhật
+     */
+    updateTrangThaiChuyenDi: async (id, trangThai) => {
+        try {
+            // PATCH /api/v1/chuyen-di/:id/trang-thai { trang_thai }
+            const response = await apiClient.patch(`/api/v1/chuyen-di/${id}/trang-thai`, {
+                trang_thai: trangThai
+            });
+            return response.data;
+        } catch (error) {
+            console.error(`Error updating trip status ${id}:`, error);
             throw error;
         }
     },
