@@ -16,6 +16,7 @@ import ReactMapGL, { Source, Layer, Marker, Popup } from '@goongmaps/goong-map-r
 import polyline from '@mapbox/polyline';
 import ChuyenDiService from '../../services/chuyenDiService';
 import TuyenDuongService from '../../services/tuyenDuongService';
+import BusTrackingService from '../../services/busTrackingService';
 
 const initialViewport = {
   latitude: 10.8231,
@@ -69,6 +70,10 @@ const ChiTietChuyenDi = () => {
   const [statusUpdating, setStatusUpdating] = useState(false);
   const [incidentLoading, setIncidentLoading] = useState(false);
   const [statusError, setStatusError] = useState(null);
+  const [busLocation, setBusLocation] = useState(null);
+  const [wsConnected, setWsConnected] = useState(false);
+  const wsRef = useRef(null);
+  const locationUpdateIntervalRef = useRef(null);
 
   useEffect(() => {
     const fetchSchedule = async () => {
@@ -226,7 +231,6 @@ const ChiTietChuyenDi = () => {
     };
   }, [schedule?.id_tuyen_duong]);
 
-  // Keep map responsive and force a remount on layout jumps (sidebar toggle)
   useEffect(() => {
     const el = mapContainerRef.current;
     if (!el) return undefined;
@@ -236,7 +240,6 @@ const ChiTietChuyenDi = () => {
       const { clientWidth, clientHeight } = el;
       if (!clientWidth || !clientHeight) return;
       setMapSizeKey((prev) => prev + 1);
-      // Run a second pass shortly after to catch layout transitions (e.g., sidebar toggle)
       if (timer) clearTimeout(timer);
       timer = setTimeout(() => {
         setMapSizeKey((prev) => prev + 1);
@@ -257,6 +260,193 @@ const ChiTietChuyenDi = () => {
       window.removeEventListener('orientationchange', updateSize);
     };
   }, []);
+
+  // WebSocket connection cho real-time tracking
+  useEffect(() => {
+    if (!schedule || schedule.trang_thai !== 'dang_di') {
+      if (wsRef.current) {
+        wsRef.current.close();
+        wsRef.current = null;
+        setWsConnected(false);
+      }
+      if (locationUpdateIntervalRef.current) {
+        clearInterval(locationUpdateIntervalRef.current);
+        locationUpdateIntervalRef.current = null;
+      }
+      return;
+    }
+
+    const connectWebSocket = () => {
+      const ws = new WebSocket('ws://localhost:3000');
+      
+      ws.onopen = () => {
+        // console.log('✅ WebSocket connected for bus tracking');
+        setWsConnected(true);
+        
+        const userData = JSON.parse(localStorage.getItem('user') || '{}');
+        if (userData.id_nguoi_dung) {
+          ws.send(JSON.stringify({
+            type: 'authenticate',
+            userId: userData.id_nguoi_dung
+          }));
+        }
+      };
+
+      ws.onmessage = (event) => {
+        try {
+          const message = JSON.parse(event.data);
+          console.log('📨 Message chi tiết chuyến di:', scheduleId);
+          if (message.type === 'bus_location_update' && 
+              message.data.id_chuyen_di === scheduleId) {
+            console.log('📍 Received bus location update:', message.data);
+            // Cập nhật state ngay lập tức
+            setBusLocation({
+              vi_do: parseFloat(message.data.vi_do),
+              kinh_do: parseFloat(message.data.kinh_do),
+              thoi_gian: message.data.thoi_gian
+            });
+          }
+        } catch (error) {
+          console.error('Error parsing WebSocket message:', error);
+        }
+      };
+
+      ws.onerror = (error) => {
+        console.error('❌ WebSocket error:', error);
+        setWsConnected(false);
+      };
+
+      ws.onclose = () => {
+        console.log('❌ WebSocket disconnected');
+        setWsConnected(false);
+        
+        setTimeout(() => {
+          if (schedule?.trang_thai === 'dang_di') {
+            connectWebSocket();
+          }
+        }, 3000);
+      };
+
+      wsRef.current = ws;
+    };
+
+    connectWebSocket();
+
+    // Lấy vị trí ban đầu từ database hoặc đặt ở điểm đầu tiên
+    const fetchInitialLocation = async () => {
+      try {
+        const response = await BusTrackingService.getTripBusLocation(scheduleId);
+        if (response.success && response.data.xe_buyt.vi_do && response.data.xe_buyt.kinh_do) {
+          setBusLocation({
+            vi_do: parseFloat(response.data.xe_buyt.vi_do),
+            kinh_do: parseFloat(response.data.xe_buyt.kinh_do),
+            thoi_gian: response.data.xe_buyt.lan_cap_nhat_cuoi
+          });
+        } else {
+          // Nếu chưa có vị trí, đặt xe ở điểm đầu tiên của tuyến
+          if (stops.length > 0) {
+            const firstStop = stops[0];
+            const initialLat = parseFloat(firstStop.vi_do);
+            const initialLng = parseFloat(firstStop.kinh_do);
+            
+            setBusLocation({
+              vi_do: initialLat,
+              kinh_do: initialLng,
+              thoi_gian: new Date().toISOString()
+            });
+
+            // Cập nhật vị trí ban đầu vào database
+            if (schedule.xe_buyt?.id_xe_buyt) {
+              await BusTrackingService.updateBusLocation(
+                schedule.xe_buyt.id_xe_buyt,
+                initialLat,
+                initialLng
+              );
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching initial bus location:', error);
+        // Nếu lỗi, vẫn đặt xe ở điểm đầu tiên
+        if (stops.length > 0) {
+          const firstStop = stops[0];
+          setBusLocation({
+            vi_do: parseFloat(firstStop.vi_do),
+            kinh_do: parseFloat(firstStop.kinh_do),
+            thoi_gian: new Date().toISOString()
+          });
+        }
+      }
+    };
+
+    fetchInitialLocation();
+
+    // Mô phỏng xe di chuyển theo tuyến đường
+    if (schedule.xe_buyt?.id_xe_buyt && routeGeoJSON?.geometry?.coordinates) {
+      const routeCoordinates = routeGeoJSON.geometry.coordinates;
+      let currentStepIndex = 0;
+
+      // Tìm điểm bắt đầu gần nhất trên tuyến (nếu xe đã có vị trí)
+      const findNearestPoint = () => {
+        let minDistance = Infinity;
+        let nearestIndex = 0;
+        
+        // Sử dụng busLocation hiện tại từ state
+        const currentBusLoc = busLocation;
+        if (currentBusLoc) {
+          routeCoordinates.forEach((coord, index) => {
+            const [lng, lat] = coord;
+            const distance = Math.sqrt(
+              Math.pow(lat - currentBusLoc.vi_do, 2) + 
+              Math.pow(lng - currentBusLoc.kinh_do, 2)
+            );
+            if (distance < minDistance) {
+              minDistance = distance;
+              nearestIndex = index;
+            }
+          });
+        }
+        return nearestIndex;
+      };
+
+      currentStepIndex = findNearestPoint();
+      
+      // console.log(`🚀 Bắt đầu mô phỏng từ điểm ${currentStepIndex}/${routeCoordinates.length}`);
+
+      locationUpdateIntervalRef.current = setInterval(async () => {
+        if (currentStepIndex >= routeCoordinates.length) {
+          // Đã đến cuối tuyến, dừng mô phỏng
+          clearInterval(locationUpdateIntervalRef.current);
+          // console.log('🏁 Xe đã hoàn thành tuyến đường');
+          return;
+        }
+
+        const [newLng, newLat] = routeCoordinates[currentStepIndex];
+        
+        try {
+          await BusTrackingService.updateBusLocation(
+            schedule.xe_buyt.id_xe_buyt,
+            newLat,
+            newLng
+          );
+          // console.log(`🚌 Xe di chuyển đến vị trí ${currentStepIndex}/${routeCoordinates.length}: [${newLat.toFixed(6)}, ${newLng.toFixed(6)}]`);
+        } catch (error) {
+          console.error('Error updating bus location:', error);
+        }
+
+        currentStepIndex += 1; // Di chuyển đến điểm tiếp theo
+      }, 3000); // Cập nhật mỗi 3 giây (tốc độ mô phỏng)
+    }
+
+    return () => {
+      if (wsRef.current) {
+        wsRef.current.close();
+      }
+      if (locationUpdateIntervalRef.current) {
+        clearInterval(locationUpdateIntervalRef.current);
+      }
+    };
+  }, [schedule, scheduleId, stops, routeGeoJSON]); // Bỏ busLocation khỏi dependency
 
   const stopLookup = useMemo(() => {
     const map = new Map();
@@ -416,7 +606,12 @@ const ChiTietChuyenDi = () => {
         ...prev,
         trang_thai: newStatus
       }));
-      alert('Cập nhật trạng thái chuyến đi thành công.');
+      
+      if (newStatus === 'dang_di') {
+        alert('Chuyến đi đã bắt đầu. Hệ thống đang theo dõi vị trí xe buýt real-time.');
+      } else {
+        alert('Cập nhật trạng thái chuyến đi thành công.');
+      }
     } catch (err) {
       const message = err.response?.data?.message || err.message || 'Cập nhật trạng thái chuyến đi thất bại.';
       setStatusError(message);
@@ -491,7 +686,22 @@ const ChiTietChuyenDi = () => {
           <span>Quay lại lịch trình</span>
         </button>
 
-        {/* Header and Actions (neutral, consistent) */}
+        {schedule?.trang_thai === 'dang_di' && (
+          <div className={`p-3 rounded-lg border ${wsConnected ? 'bg-green-50 border-green-200' : 'bg-yellow-50 border-yellow-200'}`}>
+            <div className="flex items-center gap-2">
+              <div className={`w-3 h-3 rounded-full ${wsConnected ? 'bg-green-500 animate-pulse' : 'bg-yellow-500'}`}></div>
+              <span className="text-sm font-medium">
+                {wsConnected ? '🟢 Đang theo dõi vị trí xe real-time' : '🟡 Đang kết nối...'}
+              </span>
+              {busLocation && (
+                <span className="text-xs text-gray-600 ml-auto">
+                  Cập nhật lúc: {new Date(busLocation.thoi_gian).toLocaleTimeString('vi-VN')}
+                </span>
+              )}
+            </div>
+          </div>
+        )}
+
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
           <div>
             <h1 className="text-2xl font-bold text-gray-800">
@@ -530,7 +740,6 @@ const ChiTietChuyenDi = () => {
           </div>
         </div>
 
-        {/* Compact stats */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
             <p className="text-sm text-gray-600 mb-1">Tổng học sinh</p>
@@ -556,7 +765,6 @@ const ChiTietChuyenDi = () => {
           </div>
         </div>
 
-        {/* Trip Details Card */}
         <div className="bg-white rounded-lg shadow-md p-6 border border-gray-200">
           <h2 className="text-lg font-semibold text-gray-800 mb-4">Thông tin chuyến đi</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -605,7 +813,6 @@ const ChiTietChuyenDi = () => {
           )}
         </div>
 
-        {/* Map Card */}
         <div className="bg-white rounded-lg shadow-md border border-gray-200 p-4">
           <h2 className="text-lg font-semibold text-gray-800 mb-3">Bản đồ tuyến đường</h2>
           <div ref={mapContainerRef} className="relative h-64 md:h-80 lg:h-96 overflow-hidden rounded-md">
@@ -672,6 +879,24 @@ const ChiTietChuyenDi = () => {
                   </div>
                 </Marker>
               ))}
+
+              {busLocation && schedule?.trang_thai === 'dang_di' && (
+                <Marker
+                  latitude={busLocation.vi_do}
+                  longitude={busLocation.kinh_do}
+                >
+                  <div className="relative animate-bounce">
+                    <FaBus 
+                      size={40} 
+                      className="text-orange-500 drop-shadow-lg"
+                      style={{ filter: 'drop-shadow(0 0 8px rgba(255, 165, 0, 0.6))' }}
+                    />
+                    <div className="absolute -bottom-8 left-1/2 -translate-x-1/2 bg-orange-500 text-white px-3 py-1 rounded-full text-xs font-bold whitespace-nowrap shadow-lg">
+                      {schedule.xe_buyt?.bien_so_xe || 'Xe buýt'}
+                    </div>
+                  </div>
+                </Marker>
+              )}
 
               {selectedStop && (
                 <Popup
