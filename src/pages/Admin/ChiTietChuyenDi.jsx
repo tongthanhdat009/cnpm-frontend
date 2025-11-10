@@ -280,7 +280,6 @@ const ChiTietChuyenDi = () => {
       const ws = new WebSocket('ws://localhost:3000');
       
       ws.onopen = () => {
-        // console.log('✅ WebSocket connected for bus tracking');
         setWsConnected(true);
         
         const userData = JSON.parse(localStorage.getItem('user') || '{}');
@@ -290,16 +289,28 @@ const ChiTietChuyenDi = () => {
             userId: userData.id_nguoi_dung
           }));
         }
+
+        // Subscribe vào chuyến đi này
+        ws.send(JSON.stringify({
+          type: 'subscribe_trip',
+          tripId: parseInt(scheduleId)
+        }));
+        console.log(`📡 Subscribed to trip ${scheduleId}`);
       };
 
       ws.onmessage = (event) => {
         try {
           const message = JSON.parse(event.data);
-          console.log('📨 Message chi tiết chuyến di:', scheduleId);
-          if (message.type === 'bus_location_update' && 
-              message.data.id_chuyen_di === scheduleId) {
-            console.log('📍 Received bus location update:', message.data);
-            // Cập nhật state ngay lập tức
+          
+          // Bỏ qua các message xác nhận
+          if (message.type === 'authenticated' || message.type === 'subscribed') {
+            console.log('✅', message);
+            return;
+          }
+          
+          // Chỉ xử lý bus_location_update cho chuyến này
+          if (message.type === 'bus_location_update' && message.data.id_chuyen_di === parseInt(scheduleId)) {
+            console.log('✅ Received bus location update for current trip:', message.data);
             setBusLocation({
               vi_do: parseFloat(message.data.vi_do),
               kinh_do: parseFloat(message.data.kinh_do),
@@ -440,6 +451,13 @@ const ChiTietChuyenDi = () => {
 
     return () => {
       if (wsRef.current) {
+        // Unsubscribe trước khi đóng
+        if (wsRef.current.readyState === WebSocket.OPEN) {
+          wsRef.current.send(JSON.stringify({
+            type: 'unsubscribe_trip',
+            tripId: parseInt(scheduleId)
+          }));
+        }
         wsRef.current.close();
       }
       if (locationUpdateIntervalRef.current) {
