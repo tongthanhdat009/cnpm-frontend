@@ -207,6 +207,21 @@ const ChuyenDiService = {
             throw error;
         }
     },
+
+    /**
+     * Lấy danh sách chuyến đi của một học sinh
+     * @param {number} idHocSinh - ID của học sinh
+     * @returns {Promise} Danh sách chuyến đi
+     */
+    getChuyenDiByHocSinh: async (idHocSinh) => {
+        try {
+            const response = await apiClient.get(`/api/v1/chuyen-di/hoc-sinh/${idHocSinh}`);
+            return response.data;
+        } catch (error) {
+            console.error('Error fetching chuyen di by hoc sinh:', error);
+            throw error;
+        }
+    },
     
 };
 
