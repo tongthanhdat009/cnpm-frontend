@@ -15,7 +15,6 @@ const adminMenu = [
   { path: "/tuyenduong", label: "Quản lý tuyến đường", icon: <FaRoute size={20} /> },
   { path: "/tram", label: "Quản lý trạm", icon: <FaMapPin size={20} /> },
   { path: "/lichtrinh", label: "Quản lý lịch trình", icon: <FaCalendarAlt size={20} /> },
-  { path: "/theodoixe", label: "Theo dõi xe buýt", icon: <FaMapMarkedAlt size={20} /> },
   { path: "/guithongbaoph", label: "Gửi thông báo", icon: <FaBullhorn size={20} />},
 ];
 

@@ -18,7 +18,6 @@ import ReactMapGL, { Source, Layer, Marker, Popup } from '@goongmaps/goong-map-r
 import polyline from '@mapbox/polyline';
 import ChuyenDiService from '../services/chuyenDiService';
 import TuyenDuongService from '../services/tuyenDuongService';
-import BusTrackingService from '../services/busTrackingService';
 
 const initialViewport = {
   latitude: 10.8231,
@@ -332,7 +331,13 @@ const ActiveTripModal = ({ isOpen, onClose, tripId }) => {
     
     setSendingIncident(true);
     try {
-      await ChuyenDiService.sendIncidentWarning(tripId, { message: incidentMessage });
+      // Lấy thông tin user từ localStorage
+      const userData = JSON.parse(localStorage.getItem('user') || '{}');
+      
+      await ChuyenDiService.sendIncidentWarning(tripId, { 
+        noi_dung: incidentMessage.trim(),
+        id_nguoi_gui: userData.id_nguoi_dung
+      });
       alert('✅ Đã gửi cảnh báo sự cố thành công!');
       setIncidentMessage('');
     } catch (err) {
@@ -355,7 +360,7 @@ const ActiveTripModal = ({ isOpen, onClose, tripId }) => {
   const completedLabel = schedule?.loai_chuyen_di === 'tra' ? 'Đã trả' : 'Đã đón';
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="bg-white rounded-xl shadow-2xl w-full max-w-6xl h-[90vh] flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-gray-200 bg-gradient-to-r from-indigo-600 to-blue-600 text-white rounded-t-xl">

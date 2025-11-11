@@ -69,6 +69,11 @@ const ChiTietChuyenDi = () => {
   const [wsConnected, setWsConnected] = useState(false);
   const wsRef = useRef(null);
   const locationUpdateIntervalRef = useRef(null);
+  const [attendanceUpdating, setAttendanceUpdating] = useState({});
+  const [attendanceError, setAttendanceError] = useState(null);
+  const [statusUpdating, setStatusUpdating] = useState(false);
+  const [incidentLoading, setIncidentLoading] = useState(false);
+  const [statusError, setStatusError] = useState(null);
 
   useEffect(() => {
     const fetchSchedule = async () => {
@@ -557,6 +562,94 @@ const ChiTietChuyenDi = () => {
     }
   };
 
+  const handleIncidentWarning = async () => {
+    if (!schedule) return;
+
+    const noiDung = window.prompt('Nhập nội dung cảnh báo sự cố (ví dụ: xe bị hỏng, kẹt xe, ...):');
+    if (!noiDung || !noiDung.trim()) {
+      return;
+    }
+
+    try {
+      setStatusError(null);
+      setIncidentLoading(true);
+      
+      // Lấy thông tin user từ localStorage
+      const userData = JSON.parse(localStorage.getItem('user') || '{}');
+      
+      await ChuyenDiService.sendIncidentWarning(schedule.id_chuyen_di, {
+        noi_dung: noiDung.trim(),
+        id_nguoi_gui: userData.id_nguoi_dung // Gửi kèm ID người gửi
+      });
+      
+      alert('Đã gửi cảnh báo sự cố tới hệ thống và phụ huynh.');
+    } catch (err) {
+      const message = err.response?.data?.message || err.message || 'Gửi cảnh báo sự cố thất bại.';
+      setStatusError(message);
+      alert(message);
+    } finally {
+      setIncidentLoading(false);
+    }
+  };
+
+  const handleUpdateTripStatus = async (newStatus) => {
+    if (!schedule || schedule.trang_thai === newStatus) return;
+
+    try {
+      setStatusError(null);
+      setStatusUpdating(true);
+      await ChuyenDiService.updateTrangThaiChuyenDi(schedule.id_chuyen_di, newStatus);
+      setSchedule((prev) => ({
+        ...prev,
+        trang_thai: newStatus
+      }));
+      
+      if (newStatus === 'dang_di') {
+        alert('Chuyến đi đã bắt đầu. Hệ thống đang theo dõi vị trí xe buýt real-time.');
+      } else {
+        alert('Cập nhật trạng thái chuyến đi thành công.');
+      }
+    } catch (err) {
+      const message = err.response?.data?.message || err.message || 'Cập nhật trạng thái chuyến đi thất bại.';
+      setStatusError(message);
+    } finally {
+      setStatusUpdating(false);
+    }
+  };
+
+  const handleAttendanceUpdate = async (attendanceId, targetStatus, previousStatus) => {
+    if (!schedule || targetStatus === previousStatus) return;
+
+    setAttendanceError(null);
+    setAttendanceUpdating((prev) => ({ ...prev, [attendanceId]: true }));
+
+    setSchedule((prev) => ({
+      ...prev,
+      diem_danh_chuyen_di: prev.diem_danh_chuyen_di?.map((entry) =>
+        entry.id_diem_danh === attendanceId ? { ...entry, trang_thai: targetStatus } : entry
+      )
+    }));
+
+    try {
+      await ChuyenDiService.updateTrangThaiDiemDanh(attendanceId, targetStatus);
+    } catch (err) {
+      const message = err.response?.data?.message || err.message || 'Cập nhật trạng thái điểm danh thất bại.';
+      setAttendanceError(message);
+      setSchedule((prev) => ({
+        ...prev,
+        diem_danh_chuyen_di: prev.diem_danh_chuyen_di?.map((entry) =>
+          entry.id_diem_danh === attendanceId ? { ...entry, trang_thai: previousStatus } : entry
+        )
+      }));
+    } finally {
+      setAttendanceUpdating((prev) => {
+        const updated = { ...prev };
+        delete updated[attendanceId];
+        return updated;
+      });
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-full py-20">
@@ -611,6 +704,52 @@ const ChiTietChuyenDi = () => {
                 </span>
               )}
             </div>
+          </div>
+        )}
+
+        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-800">
+              {schedule.tuyen_duong?.ten_tuyen_duong || 'Chuyến đi'}
+            </h1>
+            <p className="text-gray-600 mt-1">
+              {displayDate} • {displayTime} • {tripType}
+            </p>
+          </div>
+
+          {/* Thêm các nút điều khiển cho tài xế */}
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => handleUpdateTripStatus('dang_di')}
+              disabled={statusUpdating || schedule.trang_thai === 'dang_di' || schedule.trang_thai === 'hoan_thanh'}
+              className="px-4 py-2 text-sm font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed"
+            >
+              Bắt đầu chuyến đi
+            </button>
+            <button
+              type="button"
+              onClick={() => handleUpdateTripStatus('hoan_thanh')}
+              disabled={statusUpdating || schedule.trang_thai !== 'dang_di'}
+              className="px-4 py-2 text-sm font-medium bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-gray-300 disabled:cursor-not-allowed"
+            >
+              Hoàn thành
+            </button>
+            <button
+              type="button"
+              onClick={handleIncidentWarning}
+              disabled={incidentLoading}
+              className="px-4 py-2 text-sm font-medium bg-red-500 text-white rounded-lg hover:bg-red-600 disabled:bg-red-300 disabled:cursor-not-allowed flex items-center gap-2"
+            >
+              {incidentLoading && <FaSpinner className="animate-spin" />}
+              Cảnh báo sự cố
+            </button>
+          </div>
+        </div>
+
+        {statusError && (
+          <div className="bg-red-50 border-l-4 border-red-500 text-red-700 p-4 rounded-lg">
+            <p className="font-medium">⚠️ {statusError}</p>
           </div>
         )}
 
@@ -823,7 +962,13 @@ const ChiTietChuyenDi = () => {
             <h2 className="text-lg font-semibold text-gray-800">Danh sách học sinh</h2>
             <span className="px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-xs font-medium">{totalStudents} học sinh</span>
           </div>
-          <p className="text-sm text-gray-600 mb-4">Xem trạng thái điểm danh của học sinh</p>
+          <p className="text-sm text-gray-600 mb-4">Cập nhật trạng thái điểm danh cho học sinh</p>
+          
+          {attendanceError && (
+            <div className="mb-6 bg-red-50 border-l-4 border-red-500 text-red-700 p-4 rounded-lg">
+              <p className="font-medium">⚠️ {attendanceError}</p>
+            </div>
+          )}
           
           <div className="space-y-8">
             {studentsByStop.length === 0 && (
@@ -852,6 +997,7 @@ const ChiTietChuyenDi = () => {
                   <div className="space-y-3">
                     {stopGroup.students.map((student) => {
                       const currentStatus = student.trangThai;
+                      const isUpdating = Boolean(attendanceUpdating[student.id]);
 
                       const statusChipClass =
                         currentStatus === 'da_don' || currentStatus === 'da_tra'
@@ -863,24 +1009,58 @@ const ChiTietChuyenDi = () => {
                       const statusLabel = STATUS_LABELS[currentStatus] || currentStatus || 'Chưa cập nhật';
                       const classLabel = student.lop ? `Lớp ${student.lop}` : 'Chưa cập nhật lớp';
                       const noteText = student.ghiChu && student.ghiChu.trim().length > 0 ? student.ghiChu : 'Không có ghi chú';
+                      const completedStatus = schedule.loai_chuyen_di === 'tra' ? 'da_tra' : 'da_don';
+                      const completedLabel = schedule.loai_chuyen_di === 'tra' ? 'Đã trả' : 'Đã đón';
 
                       return (
                         <div
                           key={student.id}
-                          className="flex flex-col gap-2 border border-gray-200 rounded-lg p-4 bg-white"
+                          className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between border border-gray-200 rounded-lg p-4 bg-white"
                         >
-                          <div className="flex flex-wrap items-center gap-2">
-                            <p className="font-semibold text-gray-800 text-base">{student.hoTen}</p>
-                            <span className="px-2 py-0.5 text-xs rounded bg-indigo-100 text-indigo-700 border border-indigo-200">
-                              {classLabel}
-                            </span>
-                            <span className={`px-3 py-1 text-sm rounded-full font-medium border ${statusChipClass}`}>
-                              {statusLabel}
-                            </span>
+                          <div className="space-y-1 flex-1">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <p className="font-semibold text-gray-800 text-base">{student.hoTen}</p>
+                              <span className="px-2 py-0.5 text-xs rounded bg-indigo-100 text-indigo-700 border border-indigo-200">
+                                {classLabel}
+                              </span>
+                              <span className={`px-2 py-0.5 text-xs rounded border ${statusChipClass}`}>
+                                {statusLabel}
+                              </span>
+                            </div>
+                            <p className="text-xs text-gray-600">
+                              <strong>Ghi chú:</strong> {noteText}
+                            </p>
                           </div>
-                          <p className="text-xs text-gray-600">
-                            <strong>Ghi chú:</strong> {noteText}
-                          </p>
+                          
+                          {/* Chỉ cho phép điểm danh khi chuyến đang đi */}
+                          {schedule.trang_thai === 'dang_di' && (
+                            <div className="flex flex-wrap gap-2 md:flex-nowrap">
+                              <button
+                                type="button"
+                                onClick={() => handleAttendanceUpdate(student.id, completedStatus, currentStatus)}
+                                disabled={isUpdating || currentStatus === completedStatus}
+                                className="px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 disabled:bg-green-300 disabled:cursor-not-allowed"
+                              >
+                                {completedLabel}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleAttendanceUpdate(student.id, 'vang_mat', currentStatus)}
+                                disabled={isUpdating || currentStatus === 'vang_mat'}
+                                className="px-4 py-2 text-sm font-medium text-white bg-red-500 rounded-lg hover:bg-red-600 disabled:bg-red-300 disabled:cursor-not-allowed"
+                              >
+                                Vắng mặt
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleAttendanceUpdate(student.id, 'chua_don', currentStatus)}
+                                disabled={isUpdating || currentStatus === 'chua_don'}
+                                className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed"
+                              >
+                                Chưa cập nhật
+                              </button>
+                            </div>
+                          )}
                         </div>
                       );
                     })}

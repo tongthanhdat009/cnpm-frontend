@@ -132,7 +132,7 @@ const ChuyenDiService = {
      */
     sendIncidentWarning: async (id, payload) => {
         try {
-            const response = await apiClient.post(`/api/v1/chuyen-di/${id}/canh-bao-su-co`, payload);
+            const response = await apiClient.post(`/api/v1/chuyen-di/${id}/incident-warning`, payload);
             return response.data;
         } catch (error) {
             console.error(`Error sending incident warning for chuyen di ${id}:`, error);
