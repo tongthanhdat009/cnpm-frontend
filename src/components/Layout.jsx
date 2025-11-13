@@ -103,7 +103,7 @@ function Layout({ user, onLogout }) {
                 {isSidebarOpen && (
                   <div className="whitespace-nowrap">
                       <p className="font-semibold text-sm truncate">{user?.ho_ten}</p>
-                      <p className="text-xs text-slate-400 capitalize">{user?.vai_tro.replace('_', ' ')}</p>
+                      <p className="text-xs text-slate-400 capitalize">{user?.vai_tro?.replace('_', ' ') || ''}</p>
                   </div>
                 )}
               </div>

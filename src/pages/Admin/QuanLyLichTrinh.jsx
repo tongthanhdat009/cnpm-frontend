@@ -34,12 +34,15 @@ const fetchChuyenDi = async () => {
                 const gio = String(gioKhoiHanhDate.getUTCHours()).padStart(2, '0');
                 const phut = String(gioKhoiHanhDate.getUTCMinutes()).padStart(2, '0');
                 
+                // Parse ngày từ API - chỉ lấy phần ngày để tránh lệch múi giờ
+                const ngayStr = item.ngay.split('T')[0];
+                
                 return {
                     id_chuyen_di: item.id_chuyen_di,
                     id_tuyen_duong: item.id_tuyen_duong,
                     id_xe_buyt: item.id_xe_buyt,
                     id_tai_xe: item.id_tai_xe,
-                    ngay_chay: new Date(item.ngay).toISOString().split('T')[0],
+                    ngay_chay: ngayStr,
                     gio_khoi_hanh: `${gio}:${phut}`,
                     loai_chuyen_di: item.loai_chuyen_di,
                     trang_thai: item.trang_thai,
@@ -63,11 +66,40 @@ const fetchChuyenDi = async () => {
     }
 };
 
-// Logic lịch tuần
-const startOfWeek = new Date(currentDate);
-startOfWeek.setDate(startOfWeek.getDate() - startOfWeek.getDay() + (startOfWeek.getDay() === 0 ? -6 : 1));
-const weekDays = Array.from({ length: 7 }).map((_, i) => { const day = new Date(startOfWeek); day.setDate(day.getDate() + i); return day; });
-const changeWeek = (direction) => { const newDate = new Date(currentDate); newDate.setDate(newDate.getDate() + (7 * direction)); setCurrentDate(newDate); };
+// Logic lịch tháng
+const getMonthDays = () => {
+  const year = currentDate.getFullYear();
+  const month = currentDate.getMonth();
+  
+  // Ngày đầu tiên của tháng
+  const firstDay = new Date(year, month, 1);
+  
+  // Tìm ngày bắt đầu hiển thị (Chủ nhật tuần trước nếu tháng không bắt đầu từ CN)
+  const startDate = new Date(firstDay);
+  const dayOfWeek = firstDay.getDay();
+  startDate.setDate(startDate.getDate() - dayOfWeek);
+  
+  // Tạo mảng 42 ngày (6 tuần x 7 ngày)
+  const days = [];
+  const currentDay = new Date(startDate);
+  
+  for (let i = 0; i < 42; i++) {
+    days.push(new Date(currentDay));
+    currentDay.setDate(currentDay.getDate() + 1);
+  }
+  
+  return { days, currentMonth: month, currentYear: year };
+};
+
+const changeMonth = (direction) => { 
+  const newDate = new Date(currentDate); 
+  newDate.setMonth(newDate.getMonth() + direction); 
+  setCurrentDate(newDate); 
+};
+
+const goToToday = () => {
+  setCurrentDate(new Date());
+};
 
 // Kiểm tra ngày hiện tại
 const isToday = (date) => {
@@ -148,189 +180,184 @@ return (
         </div>
       )}
 
-      {/* Week Navigation */}
-      {!loading && !error && (
-        <>
-          <div className="flex justify-between items-center mb-4 md:mb-6 p-3 md:p-4 bg-gradient-to-r from-indigo-50 to-blue-50 rounded-lg border border-indigo-200">
-            <button 
-              onClick={() => changeWeek(-1)} 
-              className="p-2 rounded-full hover:bg-white/70 transition-colors touch-manipulation"
-              aria-label="Tuần trước"
-            >
-              <FaChevronLeft className="text-indigo-600 text-sm md:text-base" />
-            </button>
-            <h2 className="text-sm md:text-lg font-semibold text-gray-800 text-center px-2">
-              <span className="hidden sm:inline">Tuần </span>
-              {new Intl.DateTimeFormat('vi-VN', { month: '2-digit', day: '2-digit' }).format(startOfWeek)} - {new Intl.DateTimeFormat('vi-VN', { year: 'numeric', month: '2-digit', day: '2-digit' }).format(weekDays[6])}
-            </h2>
-            <button 
-              onClick={() => changeWeek(1)} 
-              className="p-2 rounded-full hover:bg-white/70 transition-colors touch-manipulation"
-              aria-label="Tuần sau"
-            >
-              <FaChevronRight className="text-indigo-600 text-sm md:text-base" />
-            </button>
-          </div>
+      {/* Month Navigation */}
+      {!loading && !error && (() => {
+        const { days, currentMonth, currentYear } = getMonthDays();
+        const monthNames = ['Tháng 1', 'Tháng 2', 'Tháng 3', 'Tháng 4', 'Tháng 5', 'Tháng 6', 
+                           'Tháng 7', 'Tháng 8', 'Tháng 9', 'Tháng 10', 'Tháng 11', 'Tháng 12'];
+        const dayNames = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
 
-          {/* Calendar Grid - Responsive */}
-          <div className="flex-grow overflow-x-auto overflow-y-hidden -mx-3 sm:-mx-4 md:mx-0">
-            <div className="min-w-[640px] md:min-w-0 px-3 sm:px-4 md:px-0 grid grid-cols-7 gap-1 sm:gap-2 md:gap-3 h-full">
-              {weekDays.map(day => {
-                const daySchedules = schedules.filter(s => s.ngay_chay === day.toISOString().split('T')[0]);
-                const today = isToday(day);
-                
-                return (
-                  <div 
-                    key={day.toISOString()} 
-                    className={`rounded-lg border-2 p-1.5 sm:p-2 md:p-3 flex flex-col transition-all min-h-[300px] ${
-                      today
-                        ? 'bg-indigo-50 border-indigo-400 shadow-md'
-                        : 'bg-gray-50 border-gray-200'
-                    }`}
-                  >
-                    {/* Ngày */}
-                    <div className={`text-center mb-2 md:mb-3 pb-1.5 md:pb-2 border-b-2 ${
-                      today ? 'border-indigo-400' : 'border-gray-300'
-                    }`}>
-                      <p className={`font-bold text-xs ${today ? 'text-indigo-700' : 'text-gray-700'}`}>
-                        <span className="hidden sm:inline">{day.toLocaleDateString('vi-VN', { weekday: 'short' })}</span>
-                        <span className="sm:hidden">{day.toLocaleDateString('vi-VN', { weekday: 'narrow' })}</span>
-                      </p>
-                      <p className={`text-lg md:text-xl font-bold ${today ? 'text-indigo-600' : 'text-gray-800'}`}>
-                        {day.getDate()}
-                      </p>
-                      {today && (
-                        <span className="text-xs bg-indigo-600 text-white px-1.5 md:px-2 py-0.5 rounded-full mt-1 inline-block">
-                          Hôm nay
-                        </span>
-                      )}
+        return (
+          <>
+            <div className="flex justify-between items-center mb-4 md:mb-6 p-3 md:p-4 bg-gradient-to-r from-indigo-50 to-blue-50 rounded-lg border border-indigo-200">
+              <button 
+                onClick={() => changeMonth(-1)} 
+                className="p-2 rounded-full hover:bg-white/70 transition-colors touch-manipulation"
+                aria-label="Tháng trước"
+              >
+                <FaChevronLeft className="text-indigo-600 text-sm md:text-base" />
+              </button>
+              <div className="flex items-center gap-3">
+                <h2 className="text-lg md:text-xl font-bold text-gray-800">
+                  {monthNames[currentMonth]} • {currentYear}
+                </h2>
+                <button 
+                  onClick={goToToday} 
+                  className="px-3 py-1 text-xs md:text-sm bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
+                >
+                  Hôm nay
+                </button>
+              </div>
+              <button 
+                onClick={() => changeMonth(1)} 
+                className="p-2 rounded-full hover:bg-white/70 transition-colors touch-manipulation"
+                aria-label="Tháng sau"
+              >
+                <FaChevronRight className="text-indigo-600 text-sm md:text-base" />
+              </button>
+            </div>
+
+            {/* Calendar Grid */}
+            <div className="flex-grow overflow-auto">
+              <div className="min-w-[640px]">
+                {/* Day headers */}
+                <div className="grid grid-cols-7 gap-1 sm:gap-2 mb-2">
+                  {dayNames.map((dayName, idx) => (
+                    <div 
+                      key={dayName} 
+                      className={`text-center font-bold text-sm md:text-base py-2 rounded-lg ${
+                        idx === 0 ? 'bg-red-100 text-red-700' : 'bg-indigo-100 text-indigo-700'
+                      }`}
+                    >
+                      {dayName}
                     </div>
+                  ))}
+                </div>
 
-                    {/* Danh sách lịch trình */}
-                    <div className="space-y-1.5 md:space-y-2 overflow-y-auto flex-grow custom-scrollbar">
-                      {daySchedules.length === 0 ? (
-                        <p className="text-xs text-gray-400 text-center mt-4">Không có chuyến đi</p>
-                      ) : (
-                        daySchedules.map(schedule => {
-                          // Màu theo trạng thái
-                          const statusConfig = {
-                            cho_khoi_hanh: { bg: 'bg-yellow-100', text: 'text-yellow-700', label: 'Chờ khởi hành' },
-                            dang_di: { bg: 'bg-blue-100', text: 'text-blue-700', label: 'Đang đi' },
-                            hoan_thanh: { bg: 'bg-green-100', text: 'text-green-700', label: 'Hoàn thành' },
-                            da_huy: { bg: 'bg-red-100', text: 'text-red-700', label: 'Đã hủy' },
-                            bi_tre: { bg: 'bg-orange-100', text: 'text-orange-700', label: 'Bị trễ' }
-                          };
-                          const status = statusConfig[schedule.trang_thai] || statusConfig.cho_khoi_hanh;
+                {/* Calendar days */}
+                <div className="grid grid-cols-7 gap-1 sm:gap-2">
+                  {days.map((day, idx) => {
+                    const isCurrentMonth = day.getMonth() === currentMonth;
+                    // So sánh ngày theo local để tránh lệch múi giờ
+                    const pad = n => n.toString().padStart(2, '0');
+                    const dayStr = `${day.getFullYear()}-${pad(day.getMonth() + 1)}-${pad(day.getDate())}`;
+                    const daySchedules = schedules.filter(s => s.ngay_chay === dayStr);
+                    const today = isToday(day);
+                    const isSunday = day.getDay() === 0;
+                    
+                    return (
+                      <div 
+                        key={idx} 
+                        className={`rounded-lg border-2 p-1.5 sm:p-2 flex flex-col min-h-[100px] md:min-h-[120px] transition-all ${
+                          !isCurrentMonth 
+                            ? 'bg-gray-100 border-gray-200 opacity-50' 
+                            : today
+                              ? 'bg-blue-50 border-blue-400 shadow-md'
+                              : 'bg-white border-gray-200 hover:border-indigo-300'
+                        }`}
+                      >
+                        {/* Ngày */}
+                        <div className="text-right mb-1">
+                          <span className={`inline-block font-bold text-sm md:text-base px-2 py-0.5 rounded ${
+                            today 
+                              ? 'bg-blue-600 text-white' 
+                              : isSunday
+                                ? 'text-red-600'
+                                : isCurrentMonth 
+                                  ? 'text-gray-800' 
+                                  : 'text-gray-400'
+                          }`}>
+                            {day.getDate()}
+                          </span>
+                        </div>
 
-                          return (
-                            <div
-                              key={schedule.id_chuyen_di}
-                              className="bg-white border-2 border-indigo-200 p-1.5 sm:p-2 md:p-3 rounded-lg text-xs hover:shadow-lg hover:border-indigo-400 transition-all group relative"
-                            >
-                              {/* Nút sửa/xóa */}
-                              <div className='absolute top-1 sm:top-1.5 md:top-2 right-1 sm:right-1.5 md:right-2 flex gap-0.5 sm:gap-1 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity z-10'>
-                                <button 
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleOpenEditModal(schedule);
-                                  }} 
-                                  className='p-1 sm:p-1.5 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors touch-manipulation'
-                                  title="Sửa"
-                                  aria-label="Sửa lịch trình"
-                                >
-                                  <FaEdit size={9} className="sm:w-2.5 sm:h-2.5" />
-                                </button>
-                                <button 
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleDeleteSchedule(schedule.id_chuyen_di);
-                                  }} 
-                                  className='p-1 sm:p-1.5 bg-red-500 text-white rounded hover:bg-red-600 transition-colors touch-manipulation'
-                                  title="Xóa"
-                                  aria-label="Xóa lịch trình"
-                                >
-                                  <FaTrash size={9} className="sm:w-2.5 sm:h-2.5" />
-                                </button>
-                              </div>
+                        {/* Danh sách lịch trình */}
+                        <div className="space-y-1 overflow-y-auto flex-grow custom-scrollbar">
+                          {isCurrentMonth && daySchedules.slice(0, 3).map(schedule => {
+                            const statusConfig = {
+                              cho_khoi_hanh: { bg: 'bg-yellow-100', border: 'border-yellow-400', text: 'text-yellow-700' },
+                              dang_di: { bg: 'bg-blue-100', border: 'border-blue-400', text: 'text-blue-700' },
+                              hoan_thanh: { bg: 'bg-green-100', border: 'border-green-400', text: 'text-green-700' },
+                              da_huy: { bg: 'bg-red-100', border: 'border-red-400', text: 'text-red-700' },
+                              bi_tre: { bg: 'bg-orange-100', border: 'border-orange-400', text: 'text-orange-700' }
+                            };
+                            const status = statusConfig[schedule.trang_thai] || statusConfig.cho_khoi_hanh;
 
-                              {/* Nội dung */}
-                              <div onClick={() => navigate(`/lichtrinh/${schedule.id_chuyen_di}`)} className="cursor-pointer">
-                                {/* Giờ khởi hành và trạng thái */}
-                                <div className="flex items-center justify-between mb-1.5 md:mb-2 pr-10 sm:pr-12">
-                                  <span className="text-base sm:text-lg font-bold text-indigo-600">
-                                    {schedule.gio_khoi_hanh}
-                                  </span>
-                                  <span className={`text-[10px] sm:text-xs ${status.bg} ${status.text} px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-full font-medium hidden sm:inline-block`}>
-                                    {status.label}
-                                  </span>
+                            return (
+                              <div
+                                key={schedule.id_chuyen_di}
+                                onClick={() => navigate(`/lichtrinh/${schedule.id_chuyen_di}`)}
+                                className={`${status.bg} border-l-4 ${status.border} p-1.5 rounded text-xs cursor-pointer hover:shadow-md transition-all group`}
+                                title={`${schedule.gio_khoi_hanh} - ${schedule.ten_tuyen_duong}\n${schedule.bien_so_xe} - ${schedule.ten_tai_xe}\n${schedule.so_hoc_sinh} học sinh`}
+                              >
+                                <div className="flex items-center justify-between gap-1">
+                                  <span className={`font-bold ${status.text}`}>{schedule.gio_khoi_hanh}</span>
+                                  <div className="flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <button 
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleOpenEditModal(schedule);
+                                      }} 
+                                      className='p-0.5 bg-blue-500 text-white rounded hover:bg-blue-600'
+                                      title="Sửa"
+                                    >
+                                      <FaEdit size={8} />
+                                    </button>
+                                    <button 
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleDeleteSchedule(schedule.id_chuyen_di);
+                                      }} 
+                                      className='p-0.5 bg-red-500 text-white rounded hover:bg-red-600'
+                                      title="Xóa"
+                                    >
+                                      <FaTrash size={8} />
+                                    </button>
+                                  </div>
                                 </div>
-
-                                {/* Trạng thái mobile */}
-                                <span className={`text-[10px] ${status.bg} ${status.text} px-1.5 py-0.5 rounded-full font-medium inline-block sm:hidden mb-1.5`}>
-                                  {status.label}
-                                </span>
-
-                                {/* Tên tuyến */}
-                                <p className="font-bold text-gray-800 mb-1.5 md:mb-2 flex items-start gap-1 group-hover:text-indigo-600 transition-colors text-xs sm:text-xs">
-                                  <FaRoute className="mt-0.5 flex-shrink-0 hidden sm:inline" size={10} />
-                                  <span className="line-clamp-2 leading-tight">{schedule.ten_tuyen_duong}</span>
+                                <p className={`${status.text} font-medium truncate text-[10px] mt-0.5`}>
+                                  {schedule.ten_tuyen_duong}
                                 </p>
-
-                                {/* Thông tin xe và tài xế */}
-                                <div className="space-y-1 text-gray-600 text-[10px] sm:text-xs">
-                                  <p className="flex items-center gap-1 sm:gap-2">
-                                    <FaBus size={10} className="text-blue-500 flex-shrink-0" />
-                                    <span className="font-medium truncate">{schedule.bien_so_xe}</span>
-                                  </p>
-
-                                  <p className="flex items-center gap-1 sm:gap-2">
-                                    <FaUserTie size={10} className="text-purple-500 flex-shrink-0" />
-                                    <span className="truncate">{schedule.ten_tai_xe}</span>
-                                  </p>
-
-                                  {/* Số học sinh */}
-                                  <p className="flex items-center gap-1 sm:gap-2 mt-1.5 sm:mt-2 pt-1.5 sm:pt-2 border-t border-gray-200">
-                                    <FaUsers size={10} className="text-orange-500 flex-shrink-0" />
-                                    <span className="font-semibold text-orange-600">
-                                      {schedule.so_hoc_sinh} <span className="hidden sm:inline">học sinh</span><span className="sm:hidden">HS</span>
-                                    </span>
-                                  </p>
+                                <div className="flex items-center gap-1 mt-0.5 text-[9px] text-gray-600">
+                                  <FaBus size={8} />
+                                  <span className="truncate">{schedule.bien_so_xe}</span>
                                 </div>
                               </div>
+                            );
+                          })}
+                          {isCurrentMonth && daySchedules.length > 3 && (
+                            <div className="text-[10px] text-indigo-600 font-semibold text-center py-0.5">
+                              +{daySchedules.length - 3} chuyến khác
                             </div>
-                          );
-                        })
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
             </div>
-          </div>
 
-          {/* Chú thích */}
-          <div className="mt-4 md:mt-6 pt-3 md:pt-4 border-t border-gray-200">
-            <div className="flex items-start md:items-center gap-3 md:gap-6 text-xs md:text-sm text-gray-600 flex-wrap">
-              <div className="flex items-center gap-1.5 md:gap-2">
-                <div className="w-3 h-3 md:w-4 md:h-4 bg-indigo-50 border-2 border-indigo-400 rounded flex-shrink-0"></div>
-                <span>Hôm nay</span>
+            {/* Chú thích */}
+            <div className="mt-4 md:mt-6 pt-3 md:pt-4 border-t border-gray-200">
+              <div className="flex items-start md:items-center gap-3 md:gap-6 text-xs md:text-sm text-gray-600 flex-wrap">
+                <div className="flex items-center gap-1.5 md:gap-2">
+                  <div className="w-3 h-3 md:w-4 md:h-4 bg-blue-50 border-2 border-blue-400 rounded flex-shrink-0"></div>
+                  <span>Hôm nay</span>
+                </div>
+                <div className="flex items-center gap-2 md:gap-3 flex-wrap">
+                  <span className="text-[10px] md:text-xs bg-yellow-100 text-yellow-700 border-l-4 border-yellow-400 px-1.5 md:px-2 py-0.5 md:py-1 rounded whitespace-nowrap">Chờ khởi hành</span>
+                  <span className="text-[10px] md:text-xs bg-blue-100 text-blue-700 border-l-4 border-blue-400 px-1.5 md:px-2 py-0.5 md:py-1 rounded whitespace-nowrap">Đang đi</span>
+                  <span className="text-[10px] md:text-xs bg-green-100 text-green-700 border-l-4 border-green-400 px-1.5 md:px-2 py-0.5 md:py-1 rounded whitespace-nowrap">Hoàn thành</span>
+                </div>
+                <p className="text-gray-500 w-full md:w-auto md:ml-auto text-xs md:text-sm mt-2 md:mt-0">
+                  💡 <span className="italic">Nhấn vào lịch để xem chi tiết, hover để chỉnh sửa</span>
+                </p>
               </div>
-              <div className="flex items-center gap-1.5 md:gap-2">
-                <div className="w-3 h-3 md:w-4 md:h-4 bg-gray-50 border-2 border-gray-200 rounded flex-shrink-0"></div>
-                <span>Ngày khác</span>
-              </div>
-              <div className="flex items-center gap-2 md:gap-3 flex-wrap">
-                <span className="text-[10px] md:text-xs bg-yellow-100 text-yellow-700 px-1.5 md:px-2 py-0.5 md:py-1 rounded-full whitespace-nowrap">Chờ khởi hành</span>
-                <span className="text-[10px] md:text-xs bg-blue-100 text-blue-700 px-1.5 md:px-2 py-0.5 md:py-1 rounded-full whitespace-nowrap">Đang đi</span>
-                <span className="text-[10px] md:text-xs bg-green-100 text-green-700 px-1.5 md:px-2 py-0.5 md:py-1 rounded-full whitespace-nowrap">Hoàn thành</span>
-              </div>
-              <p className="text-gray-500 w-full md:w-auto md:ml-auto text-xs md:text-sm mt-2 md:mt-0">
-                💡 <span className="italic"><span className="hidden sm:inline">Hover để chỉnh sửa, nhấn vào lịch để xem chi tiết</span><span className="sm:hidden">Nhấn để xem chi tiết</span></span>
-              </p>
             </div>
-          </div>
-        </>
-      )}
+          </>
+        );
+      })()}
     </div>
   </>
 );
