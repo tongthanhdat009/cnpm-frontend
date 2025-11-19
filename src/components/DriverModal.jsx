@@ -1,4 +1,4 @@
-import { FaTimes } from 'react-icons/fa';
+import { FaTimes, FaUser, FaUserTag, FaPhone, FaLock, FaSave } from 'react-icons/fa';
 import { useState, useEffect } from 'react';
 
 // --- COMPONENT MODAL ĐỂ THÊM/SỬA TÀI XẾ ---
@@ -99,76 +99,125 @@ const DriverModal = ({ isOpen, onClose, onSave, editingDriver = null }) => {
   };
 
   return (
-    <div className="fixed inset-0 flex justify-center items-center z-50">
-      <div className="bg-white p-8 rounded-lg shadow-2xl w-full max-w-lg">
-        <div className="flex justify-between items-center mb-6">
-          <h2 className="text-2xl font-bold text-gray-800">
-            {editingDriver ? 'Chỉnh sửa tài xế' : 'Thêm tài xế mới'}
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm transition-opacity">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden transform transition-all scale-100">
+        {/* Header */}
+        <div className="bg-indigo-600 px-6 py-4 flex justify-between items-center">
+          <h2 className="text-xl font-bold text-white flex items-center gap-2">
+            {editingDriver ? <FaUserTag /> : <FaUser />}
+            {editingDriver ? 'Cập nhật thông tin tài xế' : 'Thêm tài xế mới'}
           </h2>
-          <button onClick={onClose} className="text-gray-500 hover:text-gray-800">
-            <FaTimes size={24} />
+          <button 
+            onClick={onClose}
+            className="text-white/80 hover:text-white transition-colors p-1 rounded-full hover:bg-white/10"
+          >
+            <FaTimes size={20} />
           </button>
         </div>
-        <form onSubmit={handleSubmit}>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="md:col-span-2">
-              <label htmlFor="ho_ten" className="block text-sm font-medium text-gray-700">Họ và Tên</label>
+
+        {/* Body */}
+        <form onSubmit={handleSubmit} className="p-6 space-y-5">
+          {/* Họ tên */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">Họ và tên</label>
+            <div className="relative">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
+                <FaUser />
+              </div>
               <input
                 type="text"
                 name="ho_ten"
-                id="ho_ten"
                 value={formData.ho_ten}
                 onChange={handleInputChange}
-                className={`mt-1 block w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 ${errors.ho_ten ? 'border-red-500' : 'border-gray-300'}`}
+                className={`block w-full pl-10 pr-3 py-2.5 border rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all ${errors.ho_ten ? 'border-red-300 bg-red-50' : 'border-gray-200'}`}
+                placeholder="Nhập họ và tên..."
               />
-              {errors.ho_ten && <p className="mt-1 text-sm text-red-600">{errors.ho_ten}</p>}
             </div>
-            <div>
-              <label htmlFor="ten_tai_khoan" className="block text-sm font-medium text-gray-700">Tên tài khoản</label>
+            {errors.ho_ten && <p className="mt-1 text-xs text-red-500 font-medium">{errors.ho_ten}</p>}
+          </div>
+
+          {/* Tên tài khoản */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">Tên tài khoản</label>
+            <div className="relative">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
+                <FaUserTag />
+              </div>
               <input
                 type="text"
                 name="ten_tai_khoan"
-                id="ten_tai_khoan"
                 value={formData.ten_tai_khoan}
                 onChange={handleInputChange}
-                className={`mt-1 block w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 ${errors.ten_tai_khoan ? 'border-red-500' : 'border-gray-300'}`}
+                disabled={!!editingDriver}
+                className={`block w-full pl-10 pr-3 py-2.5 border rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all ${errors.ten_tai_khoan ? 'border-red-300 bg-red-50' : 'border-gray-200'} ${editingDriver ? 'bg-gray-100 text-gray-500 cursor-not-allowed' : ''}`}
+                placeholder="Nhập tên tài khoản..."
               />
-              {errors.ten_tai_khoan && <p className="mt-1 text-sm text-red-600">{errors.ten_tai_khoan}</p>}
             </div>
-            <div>
-              <label htmlFor="so_dien_thoai" className="block text-sm font-medium text-gray-700">Số điện thoại</label>
+            {errors.ten_tai_khoan && <p className="mt-1 text-xs text-red-500 font-medium">{errors.ten_tai_khoan}</p>}
+          </div>
+
+          {/* Số điện thoại */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">Số điện thoại</label>
+            <div className="relative">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
+                <FaPhone />
+              </div>
               <input
-                type="tel"
+                type="text"
                 name="so_dien_thoai"
-                id="so_dien_thoai"
                 value={formData.so_dien_thoai}
                 onChange={handleInputChange}
-                className={`mt-1 block w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 ${errors.so_dien_thoai ? 'border-red-500' : 'border-gray-300'}`}
+                className={`block w-full pl-10 pr-3 py-2.5 border rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all ${errors.so_dien_thoai ? 'border-red-300 bg-red-50' : 'border-gray-200'}`}
+                placeholder="Nhập số điện thoại..."
               />
-              {errors.so_dien_thoai && <p className="mt-1 text-sm text-red-600">{errors.so_dien_thoai}</p>}
             </div>
-            {!editingDriver && (
-              <div className="md:col-span-2">
-                <label htmlFor="mat_khau" className="block text-sm font-medium text-gray-700">Mật khẩu</label>
+            {errors.so_dien_thoai && <p className="mt-1 text-xs text-red-500 font-medium">{errors.so_dien_thoai}</p>}
+          </div>
+
+          {/* Mật khẩu (chỉ hiện khi tạo mới) */}
+          {!editingDriver && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">Mật khẩu</label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
+                  <FaLock />
+                </div>
                 <input
                   type="password"
                   name="mat_khau"
-                  id="mat_khau"
                   value={formData.mat_khau}
                   onChange={handleInputChange}
-                  className={`mt-1 block w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 ${errors.mat_khau ? 'border-red-500' : 'border-gray-300'}`}
+                  className={`block w-full pl-10 pr-3 py-2.5 border rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all ${errors.mat_khau ? 'border-red-300 bg-red-50' : 'border-gray-200'}`}
+                  placeholder="Nhập mật khẩu..."
                 />
-                {errors.mat_khau && <p className="mt-1 text-sm text-red-600">{errors.mat_khau}</p>}
               </div>
-            )}
-          </div>
-          <div className="mt-8 flex justify-end gap-4">
-            <button type="button" onClick={onClose} className="px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300">Hủy</button>
-            <button type="submit" className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700">Lưu lại</button>
+              {errors.mat_khau && <p className="mt-1 text-xs text-red-500 font-medium">{errors.mat_khau}</p>}
+            </div>
+          )}
+
+          {/* Footer Buttons */}
+          <div className="flex items-center justify-end gap-3 pt-4 border-t border-gray-100">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-2.5 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-xl transition-colors"
+            >
+              Hủy bỏ
+            </button>
+            <button
+              type="submit"
+              className="flex items-center gap-2 px-6 py-2.5 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl shadow-md hover:shadow-lg transition-all active:scale-95"
+            >
+              <FaSave />
+              {editingDriver ? 'Lưu thay đổi' : 'Tạo tài xế'}
+            </button>
           </div>
         </form>
       </div>
     </div>
   );
 };
+
 export default DriverModal;
+
