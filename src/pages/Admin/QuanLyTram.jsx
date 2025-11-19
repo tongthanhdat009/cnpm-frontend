@@ -1,59 +1,115 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { FaPlus, FaSearch, FaEdit, FaTrash, FaTimes, FaMapMarkerAlt } from 'react-icons/fa';
+import { FaPlus, FaSearch, FaEdit, FaTrash, FaMapMarkerAlt } from 'react-icons/fa';
 import ReactMapGL, { Marker } from '@goongmaps/goong-map-react';
 import StopModal from '../../components/StopModal';
-// --- DỮ LIỆU MẪU (Mô phỏng bảng diem_dung) ---
-const sampleStops = [
-  { id_diem_dung: 1, ten_diem_dung: 'Trường THCS A', dia_chi: '123 Võ Văn Tần, P. 6, Q. 3, TPHCM', vi_do: 10.7769, kinh_do: 106.7008 },
-  { id_diem_dung: 2, ten_diem_dung: 'Nhà văn hóa Thanh Niên', dia_chi: '4 Phạm Ngọc Thạch, Bến Nghé, Q. 1, TPHCM', vi_do: 10.7820, kinh_do: 106.6950 },
-  { id_diem_dung: 3, ten_diem_dung: 'Ngã tư Hàng Xanh', dia_chi: 'Điện Biên Phủ, P. 21, Q. Bình Thạnh, TPHCM', vi_do: 10.8010, kinh_do: 106.7090 },
-  { id_diem_dung: 4, ten_diem_dung: 'Công viên Gia Định', dia_chi: 'Hoàng Minh Giám, P. 3, Q. Gò Vấp, TPHCM', vi_do: 10.8150, kinh_do: 106.6780 },
-  { id_diem_dung: 5, ten_diem_dung: 'Chợ Bến Thành', dia_chi: 'Đ. Lê Lợi, P. Bến Thành, Q. 1, TPHCM', vi_do: 10.7725, kinh_do: 106.6980 },
-];
-// --- KẾT THÚC DỮ LIỆU MẪU ---
+import diemDungService from '../../services/diemDungService';
+// Note: Dữ liệu sẽ lấy từ API, sample chỉ dùng fallback khi lỗi
 
 
 
 
 // --- COMPONENT CHÍNH QUẢN LÝ TRẠM ---
 function QuanLyTram() {
-  const [stops, setStops] = useState(sampleStops);
+  const [stops, setStops] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedStop, setSelectedStop] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [stopToEdit, setStopToEdit] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
   const [viewport, setViewport] = useState({
     latitude: 10.7769, longitude: 106.7008, zoom: 12, width: '100%', height: '100%'
   });
   
+  // Ensure coordinates are valid numbers for the map/markers
+  const normalizeStop = (s) => {
+    const vi_do_num = Number(s?.vi_do);
+    const kinh_do_num = Number(s?.kinh_do);
+    return {
+      ...s,
+      ten_diem_dung: s?.ten_diem_dung || '',
+      dia_chi: s?.dia_chi || '',
+      vi_do: Number.isFinite(vi_do_num) ? vi_do_num : 10.7769,
+      kinh_do: Number.isFinite(kinh_do_num) ? kinh_do_num : 106.7008,
+    };
+  };
+  
   const filteredStops = useMemo(() => 
     stops.filter(stop => 
-      stop.ten_diem_dung.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      stop.dia_chi.toLowerCase().includes(searchTerm.toLowerCase())
+      (stop.ten_diem_dung || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (stop.dia_chi || '').toLowerCase().includes(searchTerm.toLowerCase())
     ), [stops, searchTerm]);
 
   useEffect(() => {
-      if (selectedStop) {
-        setViewport(prev => ({...prev, latitude: selectedStop.vi_do, longitude: selectedStop.kinh_do, zoom: 15, transitionDuration: 500 }));
-      }
+    if (selectedStop) {
+      setViewport(prev => ({...prev, latitude: selectedStop.vi_do, longitude: selectedStop.kinh_do, zoom: 15, transitionDuration: 500 }));
+    }
   }, [selectedStop]);
+
+  useEffect(() => {
+    const fetchStops = async () => {
+      setLoading(true);
+      setError('');
+      try {
+        const res = await diemDungService.list();
+        const data = Array.isArray(res) ? res : (res?.data || []);
+        const parsed = (data || []).map(normalizeStop);
+        setStops(parsed);
+        if (parsed.length > 0) setSelectedStop(parsed[0]);
+      } catch (e) {
+        console.error(e);
+        setError(e?.message || 'Lỗi khi tải danh sách trạm');
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchStops();
+  }, []);
 
   const handleOpenModal = (stop = null) => {
     setStopToEdit(stop);
     setIsModalOpen(true);
   };
   
-  const handleSaveStop = (data) => {
-    if (stopToEdit) {
-      // Logic sửa
-      setStops(stops.map(s => s.id_diem_dung === stopToEdit.id_diem_dung ? { ...s, ...data } : s));
-    } else {
-      // Logic thêm mới
-      const newStop = { ...data, id_diem_dung: Math.max(...stops.map(s => s.id_diem_dung)) + 1 };
-      setStops([...stops, newStop]);
+  const handleSaveStop = async (data) => {
+    try {
+      if (stopToEdit && stopToEdit.id_diem_dung) {
+        const res = await diemDungService.update(stopToEdit.id_diem_dung, data);
+        if (res?.success) {
+          const updated = normalizeStop(res.data || {});
+          setStops(prev => prev.map(s => s.id_diem_dung === stopToEdit.id_diem_dung ? updated : s));
+          setStopToEdit(null);
+          setIsModalOpen(false);
+        } else {
+          alert(res?.message || 'Cập nhật trạm thất bại');
+        }
+      } else {
+        const res = await diemDungService.create(data);
+        if (res?.success) {
+          const created = normalizeStop(res.data || {});
+          setStops(prev => [created, ...prev]);
+          setIsModalOpen(false);
+        } else {
+          alert(res?.message || 'Tạo trạm thất bại');
+        }
+      }
+    } catch (e) {
+      console.error('Error saving stop:', e);
+      alert(e?.response?.data?.message || e?.message || 'Lỗi khi lưu trạm');
     }
-    setIsModalOpen(false);
+  };
+
+  const handleEdit = (stop) => handleOpenModal(stop);
+
+  const handleDelete = async (stop) => {
+    if (!window.confirm('Bạn có chắc muốn xóa trạm này?')) return;
+    const res = await diemDungService.softDelete(stop.id_diem_dung);
+    if (res?.success) {
+      setStops(prev => prev.filter(s => s.id_diem_dung !== stop.id_diem_dung));
+    } else {
+      alert(res?.message || 'Xóa trạm thất bại');
+    }
   };
 
   return (
@@ -76,14 +132,30 @@ function QuanLyTram() {
                 </div>
             </div>
             <div className='flex-grow overflow-y-auto'>
-                {filteredStops.map(stop => (
-                    <div key={stop.id_diem_dung}
-                        className={`p-4 border-b cursor-pointer transition-colors ${selectedStop?.id_diem_dung === stop.id_diem_dung ? 'bg-indigo-50' : 'hover:bg-gray-50'}`}
-                        onClick={() => setSelectedStop(stop)}>
+              {loading ? (
+                <div className='p-4 text-gray-600'>Đang tải danh sách trạm…</div>
+              ) : error ? (
+                <div className='p-4 text-red-600'>${'{'}error{'}'}</div>
+              ) : (
+                filteredStops.map(stop => (
+                  <div key={stop.id_diem_dung} className={`p-4 border-b transition-colors ${selectedStop?.id_diem_dung === stop.id_diem_dung ? 'bg-indigo-50' : 'hover:bg-gray-50'}`}>
+                    <div className='flex items-start justify-between gap-3'>
+                      <div className='flex-1 cursor-pointer' onClick={() => setSelectedStop(stop)}>
                         <p className="font-bold text-gray-900">{stop.ten_diem_dung}</p>
                         <p className="text-sm text-gray-500 truncate">{stop.dia_chi}</p>
+                      </div>
+                      <div className='flex items-center gap-3 shrink-0'>
+                        <button className='text-blue-600 hover:text-blue-800' title='Sửa' onClick={() => handleEdit(stop)}>
+                          <FaEdit />
+                        </button>
+                        <button className='text-red-600 hover:text-red-800' title='Xóa' onClick={() => handleDelete(stop)}>
+                          <FaTrash />
+                        </button>
+                      </div>
                     </div>
-                ))}
+                  </div>
+                ))
+              )}
             </div>
             <div className='p-4 border-t'>
                 <button onClick={() => handleOpenModal()} className="w-full flex items-center justify-center gap-2 btn-primary">

@@ -30,6 +30,9 @@ const taiXeService = {
       return response.data;
     } catch (error) {
       console.error('Error creating driver:', error);
+      if (error.response && error.response.data) {
+        return error.response.data; // surface structured error { success:false, message, error }
+      }
       throw error;
     }
   },
@@ -41,6 +44,9 @@ const taiXeService = {
       return response.data;
     } catch (error) {
       console.error('Error updating driver:', error);
+      if (error.response && error.response.data) {
+        return error.response.data;
+      }
       throw error;
     }
   },

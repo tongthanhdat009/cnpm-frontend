@@ -63,7 +63,7 @@ function QuanLyTaiXe() {
           setIsModalOpen(false);
           setEditingDriver(null);
         } else {
-          alert(res?.message || 'Cập nhật thất bại');
+          alert(res?.message || res?.error || 'Cập nhật thất bại');
         }
       } else {
         const res = await taiXeService.create(payload);
@@ -71,12 +71,13 @@ function QuanLyTaiXe() {
           setDrivers(prev => [res.data, ...prev]);
           setIsModalOpen(false);
         } else {
-          alert(res?.message || 'Tạo tài xế thất bại');
+          alert(res?.message || res?.error || 'Tạo tài xế thất bại');
         }
       }
     } catch (err) {
       console.error('Error saving driver:', err);
-      alert('Lỗi khi lưu tài xế');
+      const msg = err?.response?.data?.message || err?.response?.data?.error || err?.message || 'Lỗi khi lưu tài xế';
+      alert(msg);
     }
   };
 
