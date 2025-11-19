@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { FaTimes } from 'react-icons/fa';
 
 // --- COMPONENT MODAL ĐỂ THÊM/SỬA XE BUÝT ---
-// Đã thêm props: initialData và currentTitle
+
 const BusModal = ({ isOpen, onClose, onSave, initialData, currentTitle }) => {
     
     // 1. Quản lý form bằng state để hỗ trợ điền dữ liệu cũ
@@ -22,7 +22,7 @@ const BusModal = ({ isOpen, onClose, onSave, initialData, currentTitle }) => {
                 mau_xe: initialData.mau_xe || '',
             });
         } else {
-            // Chế độ Thêm mới: Reset form
+            
             setFormData({
                 bien_so_xe: '',
                 so_ghe: '',
@@ -50,17 +50,17 @@ const BusModal = ({ isOpen, onClose, onSave, initialData, currentTitle }) => {
             : formData;
             
         onSave(finalData);
-        // Lưu ý: onClose sẽ được gọi trong hàm onSave ở component cha.
+       
     };
     
-    // Dùng prop currentTitle hoặc mặc định nếu không được truyền
+    
     const title = currentTitle || "Thêm xe buýt mới";
 
     return (
-        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex justify-center items-center z-50">
-            <div className="bg-white p-8 rounded-lg shadow-2xl w-full max-w-lg">
+        <div className="fixed inset-0 flex justify-center items-center z-50 pointer-events-none">
+            <div className="bg-white p-8 rounded-lg shadow-2xl w-full max-w-lg pointer-events-auto">
                 <div className="flex justify-between items-center mb-6">
-                    {/* KHẮC PHỤC LỖI TIÊU ĐỀ: Sử dụng prop currentTitle */}
+                    {/* */}
                     <h2 className="text-2xl font-bold text-gray-800">{title}</h2>
                     <button onClick={onClose} className="text-gray-500 hover:text-gray-800">
                         <FaTimes size={24} />
