@@ -3,7 +3,7 @@ import { Link, useLocation, Outlet, useNavigate } from "react-router-dom";
 import {
     FaUserGraduate, FaUsers, FaUserTie, FaBus, FaCalendarAlt, 
     FaMapMarkedAlt, FaBell, FaRoute, FaMapPin, FaBars, FaUserCircle,
-    FaSignOutAlt, FaTachometerAlt, FaCheckSquare, FaHistory, FaBullhorn
+    FaSignOutAlt, FaTachometerAlt, FaBullhorn
 } from "react-icons/fa";
 
 // Menu cho Quản lý
@@ -15,15 +15,12 @@ const adminMenu = [
   { path: "/tuyenduong", label: "Quản lý tuyến đường", icon: <FaRoute size={20} /> },
   { path: "/tram", label: "Quản lý trạm", icon: <FaMapPin size={20} /> },
   { path: "/lichtrinh", label: "Quản lý lịch trình", icon: <FaCalendarAlt size={20} /> },
-  { path: "/theodoixe", label: "Theo dõi xe buýt", icon: <FaMapMarkedAlt size={20} /> },
   { path: "/guithongbaoph", label: "Gửi thông báo", icon: <FaBullhorn size={20} />},
 ];
 
-// Menu cho Tài xế
+// Menu cho Tài xế - ĐÃ XÓA 2 CHỨC NĂNG
 const driverMenu = [
-  { path: "/diemdanh", label: "Điểm danh học sinh", icon: <FaCheckSquare size={20} /> },
-  { path: "/lichtrinh", label: "Xem lịch trình", icon: <FaCalendarAlt size={20} /> },
-  { path: "/theodoixe", label: "Bản đồ tuyến", icon: <FaMapMarkedAlt size={20} /> },
+  { path: "/lichtrinh", label: "Lịch trình của tôi", icon: <FaCalendarAlt size={20} /> },
   { path: "/thongbao", label: "Thông báo & Cảnh báo", icon: <FaBell size={20} /> },
 ];
 
@@ -106,7 +103,7 @@ function Layout({ user, onLogout }) {
                 {isSidebarOpen && (
                   <div className="whitespace-nowrap">
                       <p className="font-semibold text-sm truncate">{user?.ho_ten}</p>
-                      <p className="text-xs text-slate-400 capitalize">{user?.vai_tro.replace('_', ' ')}</p>
+                      <p className="text-xs text-slate-400 capitalize">{user?.vai_tro?.replace('_', ' ') || ''}</p>
                   </div>
                 )}
               </div>

@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { FaBell, FaInfoCircle, FaCheckCircle, FaExclamationTriangle, FaTrash } from 'react-icons/fa';
 
-import {getNotificationsByUserId} from '../../services/thongBaoService';
+import {getNotificationsByUserId, markNotificationAsRead} from '../../services/thongBaoService';
 
 // Lấy icon và màu sắc dựa trên loại thông báo
 const getNotificationIcon = (type) => {
@@ -77,7 +77,16 @@ function ThongBao() {
     setNotifications(prevNotifications =>
       prevNotifications.map(n => n.id === id ? { ...n, read: true } : n)
     );
-    // TODO: Gọi API để cập nhật trạng thái đã đọc trên server
+    try {
+      await markNotificationAsRead(id);
+    } catch (err) {
+      console.error('Failed to mark notification as read on server:', err);
+      // Rollback optimistic update on error
+      setNotifications(prevNotifications =>
+        prevNotifications.map(n => n.id === id ? { ...n, read: false } : n)
+      );
+      alert('Không thể cập nhật trạng thái thông báo. Vui lòng thử lại.');
+    }
   };
   
   const handleDelete = async (id) => {

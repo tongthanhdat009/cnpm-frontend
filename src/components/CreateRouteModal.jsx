@@ -139,6 +139,58 @@ const CreateRouteModal = ({ isOpen, onClose, onSave, allStops, stopCounts = {} }
     setSelectedStops(newStops);
   };
 
+  const optimizeRouteOrder = () => {
+    if (selectedStops.length < 3) return;
+    const start = selectedStops.find(s => Number(s.id_diem_dung) === 0);
+    const end = selectedStops.find(s => Number(s.id_diem_dung) === 1);
+    if (!start || !end) return;
+
+    const middle = selectedStops.filter(s => !isStartStop(s) && !isEndStop(s));
+    if (middle.length === 0) return;
+
+    // Khoảng cách Euclid 2D: sqrt((x-x0)^2 + (y-y0)^2)
+    const distance2D = (lat1, lon1, lat2, lon2) => {
+      const dx = lat2 - lat1;
+      const dy = lon2 - lon1;
+      return Math.sqrt(dx * dx + dy * dy);
+    };
+
+    // Tìm trạm xa nhất từ start
+    let farthest = middle[0];
+    let maxDist = -1;
+    for (const stop of middle) {
+      const d = distance2D(start.vi_do, start.kinh_do, stop.vi_do, stop.kinh_do);
+      if (d > maxDist) {
+        maxDist = d;
+        farthest = stop;
+      }
+    }
+
+    // Greedy nearest neighbor từ farthest
+    const ordered = [farthest];
+    const remaining = middle.filter(s => s.id_diem_dung !== farthest.id_diem_dung);
+    
+    while (remaining.length > 0) {
+      const current = ordered[ordered.length - 1];
+      let nearest = remaining[0];
+      let minDist = distance2D(current.vi_do, current.kinh_do, nearest.vi_do, nearest.kinh_do);
+      
+      for (let i = 1; i < remaining.length; i++) {
+        const d = distance2D(current.vi_do, current.kinh_do, remaining[i].vi_do, remaining[i].kinh_do);
+        if (d < minDist) {
+          minDist = d;
+          nearest = remaining[i];
+        }
+      }
+      
+      ordered.push(nearest);
+      const idx = remaining.findIndex(s => s.id_diem_dung === nearest.id_diem_dung);
+      remaining.splice(idx, 1);
+    }
+
+    setSelectedStops([start, ...ordered, end]);
+  };
+
   const buildRouteData = (nameOverride) => ({
     ten_tuyen_duong: (nameOverride ?? routeName).trim(),
     mo_ta: routeDesc,
@@ -212,7 +264,18 @@ const CreateRouteModal = ({ isOpen, onClose, onSave, allStops, stopCounts = {} }
             </div>
 
             <div>
-              <h3 className="font-semibold mb-2 text-gray-800">Các trạm đã chọn (Kéo thả hoặc dùng nút để sắp xếp)</h3>
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="font-semibold text-gray-800">Các trạm đã chọn (Kéo thả hoặc dùng nút để sắp xếp)</h3>
+                <button
+                  type="button"
+                  onClick={optimizeRouteOrder}
+                  disabled={selectedStops.length < 3}
+                  className="px-3 py-1 text-sm bg-teal-600 text-white rounded-md hover:bg-teal-700 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                  title="Sắp xếp tối ưu: Trạm 2 xa nhất, các trạm tiếp theo chọn gần nhất"
+                >
+                  Sắp xếp tối ưu
+                </button>
+              </div>
               <div className="p-3 border rounded-md min-h-[150px] space-y-2 bg-gray-50">
                 {selectedStops.map((stop, index) => (
                   <div key={stop.id_diem_dung} className="flex justify-between items-center bg-white p-2 rounded shadow-sm border">

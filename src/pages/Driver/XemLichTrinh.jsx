@@ -1,242 +1,354 @@
-import React, { useState } from 'react';
-import { FaChevronLeft, FaChevronRight, FaBus, FaUserTie, FaUsers, FaRoute, FaMapMarkerAlt } from 'react-icons/fa';
-import ScheduleDetailModal from '../../components/ScheduleDetailModal';
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { FaChevronLeft, FaChevronRight, FaBus, FaUsers, FaRoute, FaSpinner, FaClock, FaCalendarAlt, FaHistory } from 'react-icons/fa';
+import ChuyenDiService from '../../services/chuyenDiService';
+import ActiveTripModal from '../../components/ActiveTripModal';
 
-// --- DỮ LIỆU MẪU ---
-const sampleStudents = [
-  { id_hoc_sinh: 1, ho_ten: 'Nguyễn Văn An', quan: 'Quận 1' },
-  { id_hoc_sinh: 2, ho_ten: 'Trần Thị Bích', quan: 'Quận 1' },
-  { id_hoc_sinh: 3, ho_ten: 'Lê Văn Cường', quan: 'Bình Thạnh' },
-  { id_hoc_sinh: 4, ho_ten: 'Phạm Thị Dung', quan: 'Phú Nhuận' },
-];
-
-const sampleRoutes = [
-  { id_tuyen_duong: 1, ten_tuyen_duong: 'Tuyến Quận 1 - Bình Thạnh', quan: ['Quận 1', 'Bình Thạnh'], diem_dung_ids: [1, 2, 3] },
-  { id_tuyen_duong: 2, ten_tuyen_duong: 'Tuyến Phú Nhuận', quan: ['Phú Nhuận'], diem_dung_ids: [1, 4] },
-];
-
-const sampleStops = [
-  { id_diem_dung: 1, ten_diem_dung: 'Trường THCS A', vi_do: 10.7769, kinh_do: 106.7008 },
-  { id_diem_dung: 2, ten_diem_dung: 'Nhà văn hóa Thanh Niên', vi_do: 10.7820, kinh_do: 106.6950 },
-  { id_diem_dung: 3, ten_diem_dung: 'Ngã tư Hàng Xanh', vi_do: 10.8010, kinh_do: 106.7090 },
-  { id_diem_dung: 4, ten_diem_dung: 'Công viên Gia Định', vi_do: 10.8150, kinh_do: 106.6780 },
-];
-
-const sampleBuses = [
-  { id_xe_buyt: 1, bien_so_xe: "51B-123.45" }, 
-  { id_xe_buyt: 2, bien_so_xe: "51C-678.90" }
-];
-
-const sampleDrivers = [
-  { id_nguoi_dung: 201, ho_ten: "Trần Văn Sáu" }, 
-  { id_nguoi_dung: 202, ho_ten: "Lý Thị Bảy" }
-];
-
-const sampleSchedules = [
-  { id_lich_trinh: 1, id_tuyen_duong: 1, id_xe_buyt: 1, id_tai_xe: 201, ngay_chay: '2025-10-20', gio_khoi_hanh: '06:30', hoc_sinh_ids: [1, 2, 3] },
-  { id_lich_trinh: 2, id_tuyen_duong: 2, id_xe_buyt: 2, id_tai_xe: 202, ngay_chay: '2025-10-20', gio_khoi_hanh: '07:00', hoc_sinh_ids: [4] },
-  { id_lich_trinh: 3, id_tuyen_duong: 1, id_xe_buyt: 1, id_tai_xe: 201, ngay_chay: '2025-10-21', gio_khoi_hanh: '06:30', hoc_sinh_ids: [1, 2] },
-  { id_lich_trinh: 4, id_tuyen_duong: 1, id_xe_buyt: 1, id_tai_xe: 201, ngay_chay: '2025-10-22', gio_khoi_hanh: '06:30', hoc_sinh_ids: [1, 2, 3] },
-  { id_lich_trinh: 5, id_tuyen_duong: 1, id_xe_buyt: 1, id_tai_xe: 201, ngay_chay: '2025-10-23', gio_khoi_hanh: '06:30', hoc_sinh_ids: [1, 3] },
-];
-
-// --- COMPONENT CHÍNH XEM LỊCH TRÌNH (READONLY) ---
 function XemLichTrinh() {
-  const [viewingSchedule, setViewingSchedule] = useState(null);
-  const [currentDate, setCurrentDate] = useState(new Date());
+  const navigate = useNavigate();
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [currentTrip, setCurrentTrip] = useState(null);
+  const [upcomingTrips, setUpcomingTrips] = useState([]);
+  const [pastTrips, setPastTrips] = useState([]);
+  const [viewMode, setViewMode] = useState('current'); // 'current', 'upcoming', 'past'
+  const [selectedTrip, setSelectedTrip] = useState(null);
+  const [showActiveTripModal, setShowActiveTripModal] = useState(false);
+  const [activeTripId, setActiveTripId] = useState(null);
 
-  // Dữ liệu lookup
-  const [schedules] = useState(sampleSchedules);
-  const [routes] = useState(sampleRoutes);
-  const [buses] = useState(sampleBuses);
-  const [drivers] = useState(sampleDrivers);
-  const [allStudents] = useState(sampleStudents);
+  useEffect(() => {
+    const fetchDriverSchedules = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        
+        const userData = JSON.parse(localStorage.getItem('user') || '{}');
+        if (!userData.id_nguoi_dung) {
+          setError('Không tìm thấy thông tin tài xế');
+          return;
+        }
 
-  // TODO: Lọc lịch trình theo tài xế đang đăng nhập
-  // const currentDriverId = 201; // ID tài xế đăng nhập
-  // const driverSchedules = schedules.filter(s => s.id_tai_xe === currentDriverId);
+        const response = await ChuyenDiService.getChuyenDiByTaiXe(userData.id_nguoi_dung);
+        
+        if (response?.success) {
+          const trips = response.data || [];
+          const now = new Date();
+          
+          const current = trips.find(trip => trip.trang_thai === 'dang_di');
+          
+          const upcoming = trips.filter(trip => {
+            const tripDate = new Date(trip.ngay_chay || trip.ngay);
+            return tripDate > now && trip.trang_thai !== 'huy';
+          }).sort((a, b) => new Date(a.ngay_chay || a.ngay) - new Date(b.ngay_chay || b.ngay));
+          
+          const past = trips.filter(trip => {
+            const tripDate = new Date(trip.ngay_chay || trip.ngay);
+            return (tripDate < now || trip.trang_thai === 'hoan_thanh') && trip.trang_thai !== 'huy';
+          }).sort((a, b) => new Date(b.ngay_chay || b.ngay) - new Date(a.ngay_chay || a.ngay));
+          
+          setCurrentTrip(current || null);
+          setUpcomingTrips(upcoming);
+          setPastTrips(past);
+          
+          if (current) {
+            setSelectedTrip(current);
+            setViewMode('current');
+          } else if (upcoming.length > 0) {
+            setSelectedTrip(upcoming[0]);
+            setViewMode('upcoming');
+          } else if (past.length > 0) {
+            setSelectedTrip(past[0]);
+            setViewMode('past');
+          }
+        } else {
+          setError(response?.message || 'Không thể tải lịch trình');
+        }
+      } catch (err) {
+        const message = err.response?.data?.message || err.message || 'Không thể tải lịch trình';
+        setError(message);
+      } finally {
+        setLoading(false);
+      }
+    };
 
-  // Logic lịch tuần
-  const startOfWeek = new Date(currentDate);
-  startOfWeek.setDate(startOfWeek.getDate() - startOfWeek.getDay() + (startOfWeek.getDay() === 0 ? -6 : 1));
-  
-  const weekDays = Array.from({ length: 7 }).map((_, i) => {
-    const day = new Date(startOfWeek);
-    day.setDate(day.getDate() + i);
-    return day;
-  });
+    fetchDriverSchedules();
+  }, []);
 
-  const changeWeek = (direction) => {
-    const newDate = new Date(currentDate);
-    newDate.setDate(newDate.getDate() + (7 * direction));
-    setCurrentDate(newDate);
+  const handleViewDetails = (trip) => {
+    // Nếu là chuyến đang đi, mở modal
+    if (trip.trang_thai === 'dang_di') {
+      setActiveTripId(trip.id_chuyen_di);
+      setShowActiveTripModal(true);
+    } else {
+      // Nếu không phải đang đi, chuyển đến trang chi tiết
+      navigate(`/driver/chi-tiet-chuyen-di/${trip.id_chuyen_di}`);
+    }
   };
 
-  // Kiểm tra ngày hiện tại
-  const isToday = (date) => {
-    const today = new Date();
-    return date.toDateString() === today.toDateString();
+  const handleModalClose = () => {
+    setShowActiveTripModal(false);
+    setActiveTripId(null);
+    // Refresh data sau khi đóng modal
+    window.location.reload();
   };
+
+  const getStatusColor = (status) => {
+    switch(status) {
+      case 'dang_di': return 'bg-blue-100 text-blue-700';
+      case 'hoan_thanh': return 'bg-green-100 text-green-700';
+      case 'huy': return 'bg-red-100 text-red-700';
+      default: return 'bg-yellow-100 text-yellow-700';
+    }
+  };
+
+  const getStatusLabel = (status) => {
+    switch(status) {
+      case 'dang_di': return 'Đang đi';
+      case 'hoan_thanh': return 'Hoàn thành';
+      case 'huy': return 'Đã hủy';
+      default: return 'Chờ xuất phát';
+    }
+  };
+
+  const renderTripCard = (trip, isSelected) => {
+    const date = new Date(trip.ngay_chay || trip.ngay);
+    const time = trip.gio_khoi_hanh 
+      ? new Date(trip.gio_khoi_hanh).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })
+      : 'N/A';
+    const tripTypeLabel = trip.loai_chuyen_di === 'don' ? 'Đón' : 'Trả';
+    const isDangDi = trip.trang_thai === 'dang_di';
+
+    return (
+      <div
+        key={trip.id_chuyen_di}
+        onClick={() => handleViewDetails(trip)}
+        className={`p-4 rounded-lg border-2 cursor-pointer transition-all ${
+          isSelected
+            ? 'border-indigo-500 bg-indigo-50 shadow-md'
+            : 'border-gray-200 bg-white hover:border-indigo-300 hover:shadow'
+        } ${isDangDi ? 'ring-2 ring-blue-400 ring-offset-2' : ''}`}
+      >
+        {isDangDi && (
+          <div className="mb-2 flex items-center gap-2">
+            <div className="flex items-center gap-1 bg-blue-600 text-white px-3 py-1 rounded-full text-xs font-bold animate-pulse">
+              <div className="w-2 h-2 bg-white rounded-full"></div>
+              ĐANG HOẠT ĐỘNG
+            </div>
+          </div>
+        )}
+        
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2">
+            <FaClock className="text-indigo-600" size={16} />
+            <span className="text-base font-bold text-gray-800">
+              {date.toLocaleDateString('vi-VN')} • {time}
+            </span>
+          </div>
+          <span className={`text-xs px-3 py-1 rounded-full font-medium ${getStatusColor(trip.trang_thai)}`}>
+            {getStatusLabel(trip.trang_thai)}
+          </span>
+        </div>
+        
+        <div className="flex items-start gap-2 mb-3">
+          <FaRoute className="text-blue-600 mt-1 flex-shrink-0" size={14} />
+          <p className="text-sm font-semibold text-gray-800 line-clamp-2">
+            {trip.tuyen_duong?.ten_tuyen_duong}
+          </p>
+        </div>
+
+        <div className="flex items-center justify-between text-sm">
+          <div className="flex items-center gap-4">
+            <span className={`px-2 py-1 rounded text-xs font-medium ${
+              trip.loai_chuyen_di === 'don' 
+                ? 'bg-blue-100 text-blue-700' 
+                : 'bg-purple-100 text-purple-700'
+            }`}>
+              {tripTypeLabel} học sinh
+            </span>
+          </div>
+          <div className="flex items-center gap-1 text-gray-600">
+            <FaBus size={14} />
+            <span className="font-medium">{trip.xe_buyt?.bien_so_xe}</span>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-full py-20">
+        <div className="text-center">
+          <FaSpinner className="animate-spin text-4xl text-indigo-600 mx-auto mb-3" />
+          <p className="text-gray-600">Đang tải lịch trình...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <>
-      {/* Modal chi tiết lịch trình */}
-      {viewingSchedule && (
-        <ScheduleDetailModal
-          schedule={viewingSchedule}
-          onClose={() => setViewingSchedule(null)}
-          allRoutes={routes}
-          allStops={sampleStops}
-          allStudents={allStudents}
-          allBuses={buses}
-          allDrivers={drivers}
-        />
-      )}
-
-      <div className="bg-white p-6 rounded-lg shadow-md h-full flex flex-col">
+      <div className="flex flex-col h-full bg-gray-50">
         {/* Header */}
-        <div className="mb-6">
-          <h1 className="text-2xl font-bold text-gray-800 mb-2">Lịch trình của tôi</h1>
-          <p className="text-gray-600">Xem lịch trình làm việc trong tuần</p>
-        </div>
+        <div className="bg-white shadow-sm border-b border-gray-200 p-4">
+          <div className="max-w-7xl mx-auto">
+            <div className="mb-4">
+              <h1 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
+                <FaBus className="text-indigo-600" />
+                Lịch trình của tôi
+              </h1>
+              <p className="text-gray-600 mt-1">Xem lịch trình làm việc</p>
+            </div>
 
-        {/* Điều hướng tuần */}
-        <div className="flex justify-between items-center mb-6 p-4 bg-gradient-to-r from-indigo-50 to-blue-50 rounded-lg border border-indigo-200">
-          <button
-            onClick={() => changeWeek(-1)}
-            className="p-2 rounded-full hover:bg-white/70 transition-colors"
-          >
-            <FaChevronLeft className="text-indigo-600" />
-          </button>
-          
-          <h2 className="text-lg font-semibold text-gray-800">
-            Tuần {new Intl.DateTimeFormat('vi-VN', { month: '2-digit', day: '2-digit' }).format(startOfWeek)} 
-            {' - '}
-            {new Intl.DateTimeFormat('vi-VN', { year: 'numeric', month: '2-digit', day: '2-digit' }).format(weekDays[6])}
-          </h2>
-          
-          <button
-            onClick={() => changeWeek(1)}
-            className="p-2 rounded-full hover:bg-white/70 transition-colors"
-          >
-            <FaChevronRight className="text-indigo-600" />
-          </button>
-        </div>
-
-        {/* Lịch tuần */}
-        <div className="flex-grow grid grid-cols-7 gap-3">
-          {weekDays.map(day => {
-            const daySchedules = schedules.filter(
-              s => s.ngay_chay === day.toISOString().split('T')[0]
-            );
-            const today = isToday(day);
-
-            return (
-              <div
-                key={day.toISOString()}
-                className={`rounded-lg border-2 p-3 flex flex-col transition-all ${
-                  today
-                    ? 'bg-indigo-50 border-indigo-400 shadow-md'
-                    : 'bg-gray-50 border-gray-200'
+            {/* Tabs */}
+            <div className="flex gap-2 overflow-x-auto pb-2">
+              <button
+                onClick={() => {
+                  setViewMode('current');
+                  if (currentTrip) setSelectedTrip(currentTrip);
+                }}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all whitespace-nowrap ${
+                  viewMode === 'current'
+                    ? 'bg-indigo-600 text-white shadow-md'
+                    : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-200'
                 }`}
               >
-                {/* Ngày */}
-                <div className={`text-center mb-3 pb-2 border-b-2 ${
-                  today ? 'border-indigo-400' : 'border-gray-300'
-                }`}>
-                  <p className={`font-bold text-sm ${today ? 'text-indigo-700' : 'text-gray-700'}`}>
-                    {day.toLocaleDateString('vi-VN', { weekday: 'short' })}
-                  </p>
-                  <p className={`text-xl font-bold ${today ? 'text-indigo-600' : 'text-gray-800'}`}>
-                    {day.getDate()}
-                  </p>
-                  {today && (
-                    <span className="text-xs bg-indigo-600 text-white px-2 py-0.5 rounded-full mt-1 inline-block">
-                      Hôm nay
-                    </span>
-                  )}
-                </div>
-
-                {/* Danh sách lịch trình */}
-                <div className="space-y-2 overflow-y-auto flex-grow">
-                  {daySchedules.length === 0 ? (
-                    <p className="text-xs text-gray-400 text-center mt-4">Không có lịch</p>
-                  ) : (
-                    daySchedules.map(schedule => {
-                      const route = routes.find(r => r.id_tuyen_duong === schedule.id_tuyen_duong);
-                      const bus = buses.find(b => b.id_xe_buyt === schedule.id_xe_buyt);
-                      const driver = drivers.find(d => d.id_nguoi_dung === schedule.id_tai_xe);
-
-                      return (
-                        <div
-                          key={schedule.id_lich_trinh}
-                          onClick={() => setViewingSchedule(schedule)}
-                          className="bg-white border-2 border-indigo-200 p-3 rounded-lg text-xs hover:shadow-lg hover:border-indigo-400 cursor-pointer transition-all group"
-                        >
-                          {/* Giờ khởi hành */}
-                          <div className="flex items-center justify-between mb-2">
-                            <span className="text-lg font-bold text-indigo-600">
-                              {schedule.gio_khoi_hanh}
-                            </span>
-                            <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full">
-                              Hoạt động
-                            </span>
-                          </div>
-
-                          {/* Tên tuyến */}
-                          <p className="font-bold text-gray-800 mb-2 flex items-start gap-1 group-hover:text-indigo-600 transition-colors">
-                            <FaRoute className="mt-0.5 flex-shrink-0" size={12} />
-                            <span className="line-clamp-2">{route?.ten_tuyen_duong}</span>
-                          </p>
-
-                          {/* Thông tin xe */}
-                          <div className="space-y-1 text-gray-600">
-                            <p className="flex items-center gap-2">
-                              <FaBus size={11} className="text-blue-500" />
-                              <span className="font-medium">{bus?.bien_so_xe}</span>
-                            </p>
-
-                            {/* Thông tin tài xế */}
-                            <p className="flex items-center gap-2">
-                              <FaUserTie size={11} className="text-purple-500" />
-                              <span className="truncate">{driver?.ho_ten}</span>
-                            </p>
-
-                            {/* Số học sinh */}
-                            <p className="flex items-center gap-2 mt-2 pt-2 border-t border-gray-200">
-                              <FaUsers size={11} className="text-orange-500" />
-                              <span className="font-semibold text-orange-600">
-                                {schedule.hoc_sinh_ids?.length || 0} học sinh
-                              </span>
-                            </p>
-                          </div>
-                        </div>
-                      );
-                    })
-                  )}
-                </div>
-              </div>
-            );
-          })}
+                <FaBus size={14} />
+                Đang đi
+                {currentTrip && (
+                  <span className="bg-red-500 text-white text-xs px-2 py-0.5 rounded-full animate-pulse">
+                    Live
+                  </span>
+                )}
+              </button>
+              <button
+                onClick={() => {
+                  setViewMode('upcoming');
+                  if (upcomingTrips.length > 0) setSelectedTrip(upcomingTrips[0]);
+                }}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all whitespace-nowrap ${
+                  viewMode === 'upcoming'
+                    ? 'bg-indigo-600 text-white shadow-md'
+                    : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-200'
+                }`}
+              >
+                <FaCalendarAlt size={14} />
+                Sắp tới ({upcomingTrips.length})
+              </button>
+              <button
+                onClick={() => {
+                  setViewMode('past');
+                  if (pastTrips.length > 0) setSelectedTrip(pastTrips[0]);
+                }}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all whitespace-nowrap ${
+                  viewMode === 'past'
+                    ? 'bg-indigo-600 text-white shadow-md'
+                    : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-200'
+                }`}
+              >
+                <FaHistory size={14} />
+                Lịch sử ({pastTrips.length})
+              </button>
+            </div>
+          </div>
         </div>
 
-        {/* Chú thích */}
-        <div className="mt-6 pt-4 border-t border-gray-200">
-          <div className="flex items-center gap-6 text-sm text-gray-600">
-            <div className="flex items-center gap-2">
-              <div className="w-4 h-4 bg-indigo-50 border-2 border-indigo-400 rounded"></div>
-              <span>Hôm nay</span>
+        {/* Content */}
+        <div className="flex-1 overflow-hidden">
+          <div className="max-w-7xl mx-auto h-full p-4">
+            {error && (
+              <div className="mb-4 bg-yellow-50 border border-yellow-200 text-yellow-800 px-4 py-3 rounded-lg">
+                <p className="font-medium">{error}</p>
+              </div>
+            )}
+
+            <div className="bg-white rounded-lg shadow-md p-6 h-full overflow-y-auto">
+              <h2 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
+                {viewMode === 'current' && (
+                  <>
+                    <FaBus className="text-indigo-600" />
+                    Chuyến đang đi
+                  </>
+                )}
+                {viewMode === 'upcoming' && (
+                  <>
+                    <FaCalendarAlt className="text-indigo-600" />
+                    Các chuyến sắp tới
+                  </>
+                )}
+                {viewMode === 'past' && (
+                  <>
+                    <FaHistory className="text-indigo-600" />
+                    Lịch sử chuyến đi
+                  </>
+                )}
+              </h2>
+
+              <div className="space-y-3">
+                {viewMode === 'current' && currentTrip && (
+                  <>
+                    {renderTripCard(currentTrip, true)}
+                    <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                      <p className="text-sm text-blue-800">
+                        💡 <strong>Nhấn vào thẻ chuyến đi</strong> để mở bảng điều khiển với bản đồ, điểm danh học sinh, và báo cáo sự cố
+                      </p>
+                    </div>
+                  </>
+                )}
+                {viewMode === 'current' && !currentTrip && (
+                  <div className="text-center py-12">
+                    <FaBus size={48} className="mx-auto text-gray-300 mb-4" />
+                    <p className="text-gray-500 text-lg">Không có chuyến đang diễn ra</p>
+                    <p className="text-gray-400 text-sm mt-2">Chuyến tiếp theo sẽ hiển thị khi bắt đầu</p>
+                  </div>
+                )}
+
+                {viewMode === 'upcoming' && upcomingTrips.length === 0 && (
+                  <div className="text-center py-12">
+                    <FaCalendarAlt size={48} className="mx-auto text-gray-300 mb-4" />
+                    <p className="text-gray-500 text-lg">Không có chuyến nào sắp tới</p>
+                    <p className="text-gray-400 text-sm mt-2">Bạn chưa có lịch làm việc trong thời gian tới</p>
+                  </div>
+                )}
+                {viewMode === 'upcoming' && upcomingTrips.map(trip => 
+                  renderTripCard(trip, trip.id_chuyen_di === selectedTrip?.id_chuyen_di)
+                )}
+
+                {viewMode === 'past' && pastTrips.length === 0 && (
+                  <div className="text-center py-12">
+                    <FaHistory size={48} className="mx-auto text-gray-300 mb-4" />
+                    <p className="text-gray-500 text-lg">Chưa có lịch sử chuyến đi</p>
+                    <p className="text-gray-400 text-sm mt-2">Các chuyến đi đã hoàn thành sẽ hiển thị tại đây</p>
+                  </div>
+                )}
+                {viewMode === 'past' && pastTrips.slice(0, 20).map(trip => 
+                  renderTripCard(trip, trip.id_chuyen_di === selectedTrip?.id_chuyen_di)
+                )}
+              </div>
             </div>
-            <div className="flex items-center gap-2">
-              <div className="w-4 h-4 bg-gray-50 border-2 border-gray-200 rounded"></div>
-              <span>Ngày khác</span>
-            </div>
-            <p className="text-gray-500 ml-auto">
-              💡 <span className="italic">Nhấn vào lịch trình để xem chi tiết</span>
+          </div>
+        </div>
+
+        {/* Footer hint */}
+        <div className="bg-white border-t border-gray-200 p-4">
+          <div className="max-w-7xl mx-auto">
+            <p className="text-sm text-gray-600 text-center">
+              💡 <span className="italic">
+                {currentTrip 
+                  ? 'Nhấn vào chuyến đang đi để mở bảng điều khiển' 
+                  : 'Nhấn vào chuyến đi để xem chi tiết tuyến đường và danh sách học sinh'}
+              </span>
             </p>
           </div>
         </div>
       </div>
+
+      {/* Active Trip Modal */}
+      <ActiveTripModal 
+        isOpen={showActiveTripModal}
+        onClose={handleModalClose}
+        tripId={activeTripId}
+      />
     </>
   );
 }
