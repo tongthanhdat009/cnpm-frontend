@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { FaPlus, FaEye, FaTrash, FaSearch, FaEdit } from 'react-icons/fa';
+import { FaPlus, FaEye, FaTrash, FaSearch, FaEdit, FaRoute, FaMapMarkerAlt, FaUserGraduate, FaRoad, FaClock } from 'react-icons/fa';
 import CreateRouteModal from '../../components/CreateRouteModal';
 import UpdateRouteModal from '../../components/UpdateRouteModal';
 import AssignedStudentsModal from '../../components/AssignedStudentsModal';
@@ -196,8 +196,14 @@ function QuanLyTuyenDuong() {
     ]);
   };
 
+  // Calculate stats
+  const totalRoutes = routes.length;
+  const totalStops = routes.reduce((acc, r) => acc + (r.tuyen_duong_diem_dung?.length || 0), 0);
+  const totalStudents = routes.reduce((acc, r) => acc + (r.phan_cong_hoc_sinh?.length || 0), 0);
+
   return (
-    <>
+    <div className="min-h-screen bg-gray-50/50 p-6 space-y-6">
+      {/* Modals */}
       {isModalOpen && (routeToEdit ? (
         <UpdateRouteModal
           isOpen={isModalOpen}
@@ -218,93 +224,6 @@ function QuanLyTuyenDuong() {
         />
       ))}
 
-      <div className="bg-white p-6 rounded-lg shadow-md">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-          <div className="flex items-center gap-4 w-full sm:w-auto">
-            <h1 className="text-2xl font-bold text-gray-800">Quản lý tuyến đường</h1>
-            <div className="relative hidden sm:block">
-              <input value={query} onChange={e => setQuery(e.target.value)} placeholder="Tìm theo tên hoặc ID..." className="ml-4 pl-10 pr-3 py-2 border rounded w-72 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
-              <div className="absolute left-6 top-1/2 -translate-y-1/2 text-gray-400"><FaSearch/></div>
-            </div>
-          </div>
-          <div className="flex items-center gap-4">
-            <div className="block sm:hidden">
-              <div className="relative">
-                <input value={query} onChange={e => setQuery(e.target.value)} placeholder="Tìm..." className="pl-8 pr-3 py-2 border rounded w-48 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
-                <div className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-400"><FaSearch/></div>
-              </div>
-            </div>
-            <button
-              onClick={handleAddNew}
-              className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white font-semibold rounded-lg shadow-md hover:bg-indigo-700 transition-colors"
-            >
-              <FaPlus />
-              Tạo tuyến đường
-            </button>
-          </div>
-        </div>
-
-        <div className="overflow-x-auto">
-          <table className="min-w-full bg-white border border-gray-200 rounded-lg">
-            <thead className="bg-gray-100">
-              <tr>
-                <th className="py-3 px-4 text-left text-sm font-semibold text-gray-600 uppercase">ID</th>
-                <th className="py-3 px-4 text-left text-sm font-semibold text-gray-600 uppercase">Tên tuyến đường</th>
-                <th className="py-3 px-4 text-left text-sm font-semibold text-gray-600 uppercase">Mô tả</th>
-                <th className="py-3 px-4 text-left text-sm font-semibold text-gray-600 uppercase">Số điểm dừng</th>
-                <th className="py-3 px-4 text-left text-sm font-semibold text-gray-600 uppercase">Số học sinh</th>
-                <th className="py-3 px-4 text-left text-sm font-semibold text-gray-600 uppercase">Quãng đường (m)</th>
-                <th className="py-3 px-4 text-left text-sm font-semibold text-gray-600 uppercase">Thời gian dự kiến (phút)</th>
-                <th className="py-3 px-4 text-left text-sm font-semibold text-gray-600 uppercase">Hành động</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-200">
-              {filteredRoutes.map((route) => (
-                <tr key={route.id_tuyen_duong} className="hover:bg-gray-50 transition-colors">
-                  <td className="py-4 px-4 text-sm text-gray-500">{route.id_tuyen_duong}</td>
-                  <td className="py-4 px-4 text-sm text-gray-900 font-medium">{route.ten_tuyen_duong}</td>
-                  <td className="py-4 px-4 text-sm text-gray-500 max-w-sm truncate">{route.mo_ta}</td>
-                  <td className="py-4 px-4 text-sm text-gray-500">
-                    {route.tuyen_duong_diem_dung?.length || 0}
-                  </td>
-                  <td className="py-4 px-4 text-sm text-gray-500">
-                    {route.phan_cong_hoc_sinh?.length || 0}
-                  </td>
-                  <td className="py-4 px-4 text-sm text-gray-500">{route.quang_duong ?? '-'}</td>
-                  <td className="py-4 px-4 text-sm text-gray-500">{route.thoi_gian_du_kien ?? '-'}</td>
-                  <td className="py-4 px-4 text-sm flex gap-4">
-                    <button
-                      onClick={() => handleEdit(route)}
-                      className="text-indigo-600 hover:text-indigo-900"
-                      title="Sửa tuyến"
-                    >
-                      <FaEdit size={18} />
-                    </button>
-                    <button
-                      onClick={() => handleViewAssigned(route)}
-                      className="text-green-600 hover:text-green-900"
-                      title="Xem học sinh đã phân"
-                    >
-                      {/* reuse eye icon for view assigned */}
-                      <FaEye size={18} />
-                    </button>
-                    <button onClick={() => handleDelete(route)} className="text-red-600 hover:text-red-900" title="Xóa">
-                      <FaTrash size={18} />
-                    </button>
-                  </td>
-                </tr>
-              ))}
-              {routes.length === 0 && (
-                <tr>
-                  <td colSpan="6" className="py-6 text-center text-gray-500 italic">
-                    Không có dữ liệu tuyến đường
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
       {isAssignedModalOpen && (
         <AssignedStudentsModal
           isOpen={isAssignedModalOpen}
@@ -315,7 +234,179 @@ function QuanLyTuyenDuong() {
           onSave={handleSaveAssigned}
         />
       )}
-    </>
+
+      {/* Header Section */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900 tracking-tight">Quản lý tuyến đường</h1>
+          <p className="text-gray-500 mt-1">Quản lý thông tin, lịch trình và phân công học sinh</p>
+        </div>
+        <button
+          onClick={handleAddNew}
+          className="flex items-center justify-center gap-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-xl shadow-sm transition-all duration-200 hover:shadow-md active:scale-95"
+        >
+          <FaPlus className="text-sm" />
+          <span>Tạo tuyến mới</span>
+        </button>
+      </div>
+
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 flex items-center gap-4">
+          <div className="p-3 bg-blue-50 text-blue-600 rounded-xl">
+            <FaRoute size={24} />
+          </div>
+          <div>
+            <p className="text-sm font-medium text-gray-500">Tổng số tuyến</p>
+            <p className="text-2xl font-bold text-gray-900">{totalRoutes}</p>
+          </div>
+        </div>
+        <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 flex items-center gap-4">
+          <div className="p-3 bg-emerald-50 text-emerald-600 rounded-xl">
+            <FaMapMarkerAlt size={24} />
+          </div>
+          <div>
+            <p className="text-sm font-medium text-gray-500">Tổng điểm dừng</p>
+            <p className="text-2xl font-bold text-gray-900">{totalStops}</p>
+          </div>
+        </div>
+        <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 flex items-center gap-4">
+          <div className="p-3 bg-purple-50 text-purple-600 rounded-xl">
+            <FaUserGraduate size={24} />
+          </div>
+          <div>
+            <p className="text-sm font-medium text-gray-500">Học sinh được phân công</p>
+            <p className="text-2xl font-bold text-gray-900">{totalStudents}</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Main Content */}
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+        {/* Toolbar */}
+        <div className="p-5 border-b border-gray-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="relative w-full sm:w-96">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              <FaSearch className="text-gray-400" />
+            </div>
+            <input
+              value={query}
+              onChange={e => setQuery(e.target.value)}
+              placeholder="Tìm kiếm theo tên hoặc ID tuyến..."
+              className="block w-full pl-10 pr-3 py-2.5 border border-gray-200 rounded-xl text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+            />
+          </div>
+          <div className="flex items-center gap-2 text-sm text-gray-500">
+            <span>Hiển thị {filteredRoutes.length} kết quả</span>
+          </div>
+        </div>
+
+        {/* Table */}
+        <div className="overflow-x-auto">
+          <table className="min-w-full divide-y divide-gray-100">
+            <thead className="bg-gray-50/50">
+              <tr>
+                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Thông tin tuyến</th>
+                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Thống kê</th>
+                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Lộ trình</th>
+                <th className="px-6 py-4 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">Thao tác</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100 bg-white">
+              {filteredRoutes.map((route) => (
+                <tr key={route.id_tuyen_duong} className="group hover:bg-gray-50/50 transition-colors">
+                  <td className="px-6 py-4">
+                    <div className="flex items-start gap-3">
+                      <div className="p-2 bg-indigo-50 text-indigo-600 rounded-lg mt-1">
+                        <FaRoute />
+                      </div>
+                      <div>
+                        <div className="font-semibold text-gray-900">{route.ten_tuyen_duong}</div>
+                        <div className="text-xs text-gray-500 mt-0.5">ID: {route.id_tuyen_duong}</div>
+                        <div className="text-sm text-gray-600 mt-1 line-clamp-1 max-w-xs" title={route.mo_ta}>
+                          {route.mo_ta || 'Chưa có mô tả'}
+                        </div>
+                      </div>
+                    </div>
+                  </td>
+                  <td className="px-6 py-4">
+                    <div className="flex flex-col gap-2">
+                      <div className="flex items-center gap-2 text-sm text-gray-600">
+                        <FaMapMarkerAlt className="text-emerald-500" size={14} />
+                        <span className="font-medium">{route.tuyen_duong_diem_dung?.length || 0}</span>
+                        <span className="text-gray-400">điểm dừng</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-sm text-gray-600">
+                        <FaUserGraduate className="text-purple-500" size={14} />
+                        <span className="font-medium">{route.phan_cong_hoc_sinh?.length || 0}</span>
+                        <span className="text-gray-400">học sinh</span>
+                      </div>
+                    </div>
+                  </td>
+                  <td className="px-6 py-4">
+                    <div className="flex flex-col gap-2">
+                      <div className="flex items-center gap-2 text-sm text-gray-600">
+                        <FaRoad className="text-gray-400" size={14} />
+                        <span>{route.quang_duong ? `${route.quang_duong} m` : '---'}</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-sm text-gray-600">
+                        <FaClock className="text-gray-400" size={14} />
+                        <span>{route.thoi_gian_du_kien ? `${route.thoi_gian_du_kien} phút` : '---'}</span>
+                      </div>
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 text-right">
+                    <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button
+                        onClick={() => handleViewAssigned(route)}
+                        className="p-2 text-gray-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                        title="Xem danh sách học sinh"
+                      >
+                        <FaEye size={18} />
+                      </button>
+                      <button
+                        onClick={() => handleEdit(route)}
+                        className="p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                        title="Chỉnh sửa thông tin"
+                      >
+                        <FaEdit size={18} />
+                      </button>
+                      <button
+                        onClick={() => handleDelete(route)}
+                        className="p-2 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                        title="Xóa tuyến đường"
+                      >
+                        <FaTrash size={18} />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+              {filteredRoutes.length === 0 && (
+                <tr>
+                  <td colSpan="4" className="px-6 py-12 text-center">
+                    <div className="flex flex-col items-center justify-center text-gray-400">
+                      <div className="p-4 bg-gray-50 rounded-full mb-3">
+                        <FaSearch size={24} />
+                      </div>
+                      <p className="text-lg font-medium text-gray-900">Không tìm thấy tuyến đường</p>
+                      <p className="text-sm mt-1">Thử thay đổi từ khóa tìm kiếm hoặc tạo tuyến mới</p>
+                    </div>
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+        
+        {/* Footer Pagination (Placeholder) */}
+        <div className="px-6 py-4 border-t border-gray-100 bg-gray-50/50 flex items-center justify-between">
+          <div className="text-sm text-gray-500">
+            Đang hiển thị tất cả {filteredRoutes.length} tuyến đường
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }
 
