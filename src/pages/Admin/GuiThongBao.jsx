@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FaPaperPlane, FaHistory, FaSpinner, FaUserTie, FaUsers, FaUser, FaBullhorn } from 'react-icons/fa';
+import { FaPaperPlane, FaHistory, FaSpinner, FaUsers, FaUser, FaBullhorn } from 'react-icons/fa';
 
 import {getAllNotifications, sendNotification} from '../../services/thongBaoService';
 import NguoiDungService from '../../services/nguoiDungService';
@@ -9,18 +9,17 @@ function GuiThongBao() {
   const [sentNotifications, setSentNotifications] = useState([]);
   const [parents, setParents] = useState([]);
   const [drivers, setDrivers] = useState([]);
-  const [recipientType, setRecipientType] = useState('all_parents'); // 'all_parents', 'specific_parent', 'all_drivers', 'specific_driver'
-  const [selectedParent, setSelectedParent] = useState('');
-  const [selectedDriver, setSelectedDriver] = useState('');
+  const [recipientType, setRecipientType] = useState('all_users'); // 'all_users', 'specific_user'
+  const [selectedRole, setSelectedRole] = useState('phu_huynh'); // 'phu_huynh', 'tai_xe'
+  const [selectedUser, setSelectedUser] = useState('');
   const [title, setTitle] = useState('');
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
 
   useEffect(() => {
     fetchSentNotifications();
-    fetchAllPhuHuynh();
-    fetchAllTaiXe();
+    fetchParents();
+    fetchDrivers();
   }, []);
 
   const fetchSentNotifications = async () => {
@@ -34,12 +33,11 @@ function GuiThongBao() {
       }
     } catch (err) {
       console.error("Lỗi khi lấy thông báo đã gửi:", err);
-      setError('Đã xảy ra lỗi');
     }
   };
 
-  const fetchAllPhuHuynh = async () => {
-    try{
+  const fetchParents = async () => {
+    try {
       const response = await NguoiDungService.getNguoiDungByVaiTro("phu_huynh");
       if (response.success) {
         setParents(response.data);
@@ -48,12 +46,11 @@ function GuiThongBao() {
       }
     } catch (err) {
       console.error("Lỗi khi lấy danh sách phụ huynh:", err);
-      setError(err.response?.data?.message || err.message || 'Đã xảy ra lỗi');
     }
   };
 
-  const fetchAllTaiXe = async () => {
-    try{
+  const fetchDrivers = async () => {
+    try {
       const response = await NguoiDungService.getNguoiDungByVaiTro("tai_xe");
       if (response.success) {
         setDrivers(response.data);
@@ -62,14 +59,12 @@ function GuiThongBao() {
       }
     } catch (err) {
       console.error("Lỗi khi lấy danh sách tài xế:", err);
-      setError(err.response?.data?.message || err.message || 'Đã xảy ra lỗi');
     }
   };
 
   
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError(null);
     if (!title || !message) {
       alert('Vui lòng nhập tiêu đề và nội dung.');
       return;
@@ -81,16 +76,12 @@ function GuiThongBao() {
       tieu_de: title,
       noi_dung: message,
       id_nguoi_gui: localStorage.getItem('user') ? JSON.parse(localStorage.getItem('user')).id_nguoi_dung : null,
-      recipientType,
-      selectedParent,
-      selectedDriver,
     }
 
-    if (recipientType === 'specific_parent') {
-      payload.id_nguoi_nhan = parseInt(selectedParent);
-    } else if (recipientType === 'specific_driver') {
-      payload.id_nguoi_nhan = parseInt(selectedDriver);
+    if (recipientType === 'specific_user') {
+      payload.id_nguoi_nhan = parseInt(selectedUser);
     } else {
+      // Gửi cho tất cả người dùng
       payload.id_nguoi_nhan = null;
     }
 
@@ -112,15 +103,13 @@ function GuiThongBao() {
 
         setTitle('');
         setMessage('');
-        setSelectedParent('');
-        setSelectedDriver('');
+        setSelectedUser('');
         alert('Gửi thông báo thành công!');
       } else {
         throw new Error(response.message || 'Gửi thông báo thất bại');
       }
     } catch (err) {
       console.error("Lỗi khi gửi thông báo:", err);
-      setError(err.response?.data?.message || err.message || 'Đã xảy ra lỗi');
       alert(`Gửi thông báo thất bại: ${err.response?.data?.message || err.message}`);
     } finally {
       setLoading(false);
@@ -128,20 +117,14 @@ function GuiThongBao() {
   };
 
   const getTargetDisplay = (type, id) => {
-    switch(type) {
-      case 'all_parents':
-        return 'Tất cả phụ huynh';
-      case 'all_drivers':
-        return 'Tất cả tài xế';
-      case 'specific_parent':
-        const parent = parents.find(p => p.id_nguoi_dung === id);
-        return parent ? `Phụ huynh: ${parent.ho_ten}` : `Phụ huynh ID: ${id}`;
-      case 'specific_driver':
-        const driver = drivers.find(d => d.id_nguoi_dung === id);
-        return driver ? `Tài xế: ${driver.ho_ten}` : `Tài xế ID: ${id}`;
-      default:
-        return 'Không xác định';
+    if (type === 'all_users') {
+      return 'Tất cả người dùng';
+    } else if (type === 'specific_user') {
+      const allUsers = [...parents, ...drivers];
+      const user = allUsers.find(u => u.id_nguoi_dung === id);
+      return user ? `${user.ho_ten} (${user.vai_tro === 'phu_huynh' ? 'Phụ huynh' : 'Tài xế'})` : `Người dùng ID: ${id}`;
     }
+    return 'Không xác định';
   };
 
   return (
@@ -155,7 +138,7 @@ function GuiThongBao() {
             </div>
             <div>
               <h2 className="text-xl md:text-2xl font-bold text-gray-800">Soạn thông báo mới</h2>
-              <p className="text-sm text-gray-500">Gửi thông báo đến phụ huynh hoặc tài xế</p>
+              <p className="text-sm text-gray-500">Gửi thông báo đến tất cả người dùng hoặc người dùng cụ thể</p>
             </div>
           </div>
           
@@ -168,111 +151,79 @@ function GuiThongBao() {
               </label>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <label className={`flex items-center p-4 border-2 rounded-lg cursor-pointer transition-all ${
-                  recipientType === 'all_parents' 
+                  recipientType === 'all_users' 
                     ? 'border-indigo-500 bg-indigo-50 shadow-md' 
                     : 'border-gray-300 bg-white hover:border-indigo-300'
                 }`}>
                   <input
                     type="radio"
-                    value="all_parents"
-                    checked={recipientType === 'all_parents'}
+                    value="all_users"
+                    checked={recipientType === 'all_users'}
                     onChange={(e) => setRecipientType(e.target.value)}
                     className="mr-3 w-4 h-4 text-indigo-600"
                   />
                   <FaUsers className="mr-2 text-green-600" />
-                  <span className="font-medium">Tất cả phụ huynh</span>
+                  <span className="font-medium">Tất cả người dùng</span>
                 </label>
 
                 <label className={`flex items-center p-4 border-2 rounded-lg cursor-pointer transition-all ${
-                  recipientType === 'specific_parent' 
+                  recipientType === 'specific_user' 
                     ? 'border-indigo-500 bg-indigo-50 shadow-md' 
                     : 'border-gray-300 bg-white hover:border-indigo-300'
                 }`}>
                   <input
                     type="radio"
-                    value="specific_parent"
-                    checked={recipientType === 'specific_parent'}
+                    value="specific_user"
+                    checked={recipientType === 'specific_user'}
                     onChange={(e) => setRecipientType(e.target.value)}
                     className="mr-3 w-4 h-4 text-indigo-600"
                   />
                   <FaUser className="mr-2 text-blue-600" />
-                  <span className="font-medium">Một phụ huynh</span>
-                </label>
-
-                <label className={`flex items-center p-4 border-2 rounded-lg cursor-pointer transition-all ${
-                  recipientType === 'all_drivers' 
-                    ? 'border-indigo-500 bg-indigo-50 shadow-md' 
-                    : 'border-gray-300 bg-white hover:border-indigo-300'
-                }`}>
-                  <input
-                    type="radio"
-                    value="all_drivers"
-                    checked={recipientType === 'all_drivers'}
-                    onChange={(e) => setRecipientType(e.target.value)}
-                    className="mr-3 w-4 h-4 text-indigo-600"
-                  />
-                  <FaUserTie className="mr-2 text-purple-600" />
-                  <span className="font-medium">Tất cả tài xế</span>
-                </label>
-
-                <label className={`flex items-center p-4 border-2 rounded-lg cursor-pointer transition-all ${
-                  recipientType === 'specific_driver' 
-                    ? 'border-indigo-500 bg-indigo-50 shadow-md' 
-                    : 'border-gray-300 bg-white hover:border-indigo-300'
-                }`}>
-                  <input
-                    type="radio"
-                    value="specific_driver"
-                    checked={recipientType === 'specific_driver'}
-                    onChange={(e) => setRecipientType(e.target.value)}
-                    className="mr-3 w-4 h-4 text-indigo-600"
-                  />
-                  <FaUserTie className="mr-2 text-orange-600" />
-                  <span className="font-medium">Một tài xế</span>
+                  <span className="font-medium">Một người dùng cụ thể</span>
                 </label>
               </div>
             </div>
 
             {/* Dropdown cho người nhận cụ thể */}
-            {recipientType === 'specific_parent' && (
-              <div className="animate-fadeIn">
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Chọn phụ huynh
-                </label>
-                <select 
-                  value={selectedParent}
-                  onChange={(e) => setSelectedParent(e.target.value)}
-                  required
-                  className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all"
-                >
-                  <option value="">-- Chọn phụ huynh --</option>
-                  {parents.map(parent => (
-                    <option key={parent.id_nguoi_dung} value={parent.id_nguoi_dung}>
-                      {parent.ho_ten} - {parent.email}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            )}
+            {recipientType === 'specific_user' && (
+              <div className="animate-fadeIn space-y-4">
+                {/* Chọn vai trò */}
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Chọn vai trò
+                  </label>
+                  <select 
+                    value={selectedRole}
+                    onChange={(e) => {
+                      setSelectedRole(e.target.value);
+                      setSelectedUser(''); // Reset người dùng khi đổi vai trò
+                    }}
+                    className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all"
+                  >
+                    <option value="phu_huynh">Phụ huynh</option>
+                    <option value="tai_xe">Tài xế</option>
+                  </select>
+                </div>
 
-            {recipientType === 'specific_driver' && (
-              <div className="animate-fadeIn">
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Chọn tài xế
-                </label>
-                <select 
-                  value={selectedDriver}
-                  onChange={(e) => setSelectedDriver(e.target.value)}
-                  required
-                  className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all"
-                >
-                  <option value="">-- Chọn tài xế --</option>
-                  {drivers.map(driver => (
-                    <option key={driver.id_nguoi_dung} value={driver.id_nguoi_dung}>
-                      {driver.ho_ten} - {driver.so_dien_thoai}
-                    </option>
-                  ))}
-                </select>
+                {/* Chọn người dùng theo vai trò */}
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Chọn {selectedRole === 'phu_huynh' ? 'phụ huynh' : 'tài xế'}
+                  </label>
+                  <select 
+                    value={selectedUser}
+                    onChange={(e) => setSelectedUser(e.target.value)}
+                    required
+                    className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all"
+                  >
+                    <option value="">-- Chọn {selectedRole === 'phu_huynh' ? 'phụ huynh' : 'tài xế'} --</option>
+                    {(selectedRole === 'phu_huynh' ? parents : drivers).map(user => (
+                      <option key={user.id_nguoi_dung} value={user.id_nguoi_dung}>
+                        {user.ho_ten} - {user.email || user.so_dien_thoai}
+                      </option>
+                    ))}
+                  </select>
+                </div>
               </div>
             )}
 

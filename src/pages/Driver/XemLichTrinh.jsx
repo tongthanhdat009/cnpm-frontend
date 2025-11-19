@@ -116,7 +116,6 @@ function XemLichTrinh() {
       ? new Date(trip.gio_khoi_hanh).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })
       : 'N/A';
     const tripTypeLabel = trip.loai_chuyen_di === 'don' ? 'Đón' : 'Trả';
-    const studentCount = trip.diem_danh_chuyen_di?.length || 0;
     const isDangDi = trip.trang_thai === 'dang_di';
 
     return (
@@ -166,10 +165,6 @@ function XemLichTrinh() {
             }`}>
               {tripTypeLabel} học sinh
             </span>
-            <div className="flex items-center gap-1 text-orange-600">
-              <FaUsers size={14} />
-              <span className="font-semibold">{studentCount}</span>
-            </div>
           </div>
           <div className="flex items-center gap-1 text-gray-600">
             <FaBus size={14} />

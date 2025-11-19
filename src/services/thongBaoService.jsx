@@ -37,3 +37,16 @@ export const sendNotification = async (notification) => {
         throw error;
     }
 }
+
+export const markNotificationAsRead = async (id_thong_bao) => {
+    try {
+        const response = await apiClient.patch(`/api/v1/thong-bao/${id_thong_bao}/seen`);
+        if (response.data.success) {
+            return response.data.data;
+        }
+        throw new Error(response.data.message || 'Cập nhật thông báo thất bại');
+    } catch (error) {
+        console.error('Error marking notification as read:', error);
+        throw error;
+    }
+}
