@@ -1,116 +1,133 @@
-import React, { useState, useEffect } from 'react';
-import { FaTimes } from 'react-icons/fa';
+import { FaTimes, FaBus, FaIdCard, FaPalette, FaSave } from 'react-icons/fa';
+import { useState, useEffect } from 'react';
 
-// --- COMPONENT MODAL ĐỂ THÊM/SỬA XE BUÝT ---
+const BusModal = ({ isOpen, onClose, onSave, editingBus = null }) => {
+  const [formData, setFormData] = useState({
+    bien_so_xe: '',
+    so_ghe: '',
+    hang: '',  // ← đổi từ mau_xe → hang
+  });
 
-const BusModal = ({ isOpen, onClose, onSave, initialData, currentTitle }) => {
-    
-    // 1. Quản lý form bằng state để hỗ trợ điền dữ liệu cũ
-    const [formData, setFormData] = useState({
-        bien_so_xe: '',
-        so_ghe: '',
-        mau_xe: '',
-    });
+  const [errors, setErrors] = useState({});
 
-    // 2. useEffect để điền dữ liệu khi ở chế độ Sửa
-    useEffect(() => {
-        if (initialData) {
-            // Chế độ Sửa: Điền dữ liệu cũ
-            setFormData({
-                bien_so_xe: initialData.bien_so_xe || '',
-                so_ghe: initialData.so_ghe || '', // Giữ nguyên type là number
-                mau_xe: initialData.mau_xe || '',
-            });
-        } else {
-            
-            setFormData({
-                bien_so_xe: '',
-                so_ghe: '',
-                mau_xe: '',
-            });
-        }
-    }, [initialData, isOpen]); // Kích hoạt khi dữ liệu hoặc trạng thái mở thay đổi
+  useEffect(() => {
+    if (editingBus) {
+      setFormData({
+        bien_so_xe: editingBus.bien_so_xe || '',
+        so_ghe: editingBus.so_ghe || '',
+        hang: editingBus.hang || '',  // ← lấy đúng cột từ DB
+      });
+    } else {
+      setFormData({ bien_so_xe: '', so_ghe: '', hang: '' });
+    }
+    setErrors({});
+  }, [editingBus, isOpen]);
 
-    if (!isOpen) return null;
+  if (!isOpen) return null;
 
-    const handleChange = (e) => {
-        const { name, value } = e.target;
-        // Xử lý giá trị số (số ghế) để đảm bảo đúng format
-        const finalValue = name === 'so_ghe' ? parseInt(value) || 0 : value; 
-        
-        setFormData(prev => ({ ...prev, [name]: finalValue }));
-    };
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    const finalValue = name === 'so_ghe' ? parseInt(value) || '' : value;
+    setFormData(prev => ({ ...prev, [name]: finalValue }));
+    if (errors[name]) setErrors(prev => ({ ...prev, [name]: '' }));
+  };
 
-    const handleSubmit = (event) => {
-        event.preventDefault();
+  const validateForm = () => {
+    const newErrors = {};
+    if (!formData.bien_so_xe.trim()) newErrors.bien_so_xe = 'Biển số xe là bắt buộc';
+    if (!formData.so_ghe || formData.so_ghe <= 0) newErrors.so_ghe = 'Số ghế phải lớn hơn 0';
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
 
-        // Thêm ID vào dữ liệu nếu đang ở chế độ Sửa
-        const finalData = initialData 
-            ? { ...formData, id_xe_buyt: initialData.id_xe_buyt } 
-            : formData;
-            
-        onSave(finalData);
-       
-    };
-    
-    
-    const title = currentTitle || "Thêm xe buýt mới";
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    if (!validateForm()) return;
+    onSave(formData);
+  };
 
-    return (
-        <div className="fixed inset-0 flex justify-center items-center z-50 pointer-events-none">
-            <div className="bg-white p-8 rounded-lg shadow-2xl w-full max-w-lg pointer-events-auto">
-                <div className="flex justify-between items-center mb-6">
-                    {/* */}
-                    <h2 className="text-2xl font-bold text-gray-800">{title}</h2>
-                    <button onClick={onClose} className="text-gray-500 hover:text-gray-800">
-                        <FaTimes size={24} />
-                    </button>
-                </div>
-                <form onSubmit={handleSubmit}>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div className="md:col-span-2">
-                            <label htmlFor="bien_so_xe" className="block text-sm font-medium text-gray-700">Biển số xe</label>
-                            <input 
-                                type="text" 
-                                name="bien_so_xe" 
-                                id="bien_so_xe" 
-                                required 
-                                value={formData.bien_so_xe} // Đã gán giá trị từ state
-                                onChange={handleChange}     // Đã gán hàm xử lý thay đổi
-                                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-                            />
-                        </div>
-                        <div>
-                            <label htmlFor="so_ghe" className="block text-sm font-medium text-gray-700">Số ghế</label>
-                            <input 
-                                type="number" 
-                                name="so_ghe" 
-                                id="so_ghe" 
-                                required 
-                                value={formData.so_ghe} // Đã gán giá trị từ state
-                                onChange={handleChange}
-                                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-                            />
-                        </div>
-                        <div>
-                            <label htmlFor="mau_xe" className="block text-sm font-medium text-gray-700">Mẫu xe</label>
-                            <input 
-                                type="text" 
-                                name="mau_xe" 
-                                id="mau_xe" 
-                                value={formData.mau_xe} // Đã gán giá trị từ state
-                                onChange={handleChange}
-                                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-                            />
-                        </div>
-                    </div>
-                    <div className="mt-8 flex justify-end gap-4">
-                        <button type="button" onClick={onClose} className="px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300">Hủy</button>
-                        <button type="submit" className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700">Lưu lại</button>
-                    </div>
-                </form>
-            </div>
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden transform transition-all scale-100">
+
+        {/* Header */}
+        <div className="bg-indigo-600 px-6 py-4 flex justify-between items-center">
+          <h2 className="text-xl font-bold text-white flex items-center gap-2">
+            <FaBus /> {editingBus ? 'Cập nhật xe buýt' : 'Thêm xe buýt mới'}
+          </h2>
+          <button onClick={onClose} className="text-white/80 hover:text-white transition-colors p-1 rounded-full hover:bg-white/10">
+            <FaTimes size={20} />
+          </button>
         </div>
-    );
+
+        {/* Body */}
+        <form onSubmit={handleSubmit} className="p-6 space-y-5">
+
+          {/* Biển số xe */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">Biển số xe</label>
+            <div className="relative">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
+                <FaIdCard />
+              </div>
+              <input
+                type="text"
+                name="bien_so_xe"
+                value={formData.bien_so_xe}
+                onChange={handleInputChange}
+                className={`block w-full pl-10 pr-3 py-2.5 border rounded-xl text-sm ${errors.bien_so_xe ? 'border-red-300 bg-red-50' : 'border-gray-200'}`}
+                placeholder="Nhập biển số xe..."
+              />
+            </div>
+            {errors.bien_so_xe && <p className="mt-1 text-xs text-red-500 font-medium">{errors.bien_so_xe}</p>}
+          </div>
+
+          {/* Số ghế */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">Số ghế</label>
+            <input
+              type="number"
+              name="so_ghe"
+              value={formData.so_ghe}
+              onChange={handleInputChange}
+              className={`block w-full pl-3 pr-3 py-2.5 border rounded-xl text-sm ${errors.so_ghe ? 'border-red-300 bg-red-50' : 'border-gray-200'}`}
+              placeholder="Nhập số ghế..."
+            />
+            {errors.so_ghe && <p className="mt-1 text-xs text-red-500 font-medium">{errors.so_ghe}</p>}
+          </div>
+
+          {/* Mẫu xe (map vào cột HANG) */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">Mẫu xe</label>
+            <div className="relative">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
+                <FaPalette />
+              </div>
+              <input
+                type="text"
+                name="hang"      // ← tên field gửi lên backend
+                value={formData.hang}
+                onChange={handleInputChange}
+                className="block w-full pl-10 pr-3 py-2.5 border rounded-xl text-sm border-gray-200"
+                placeholder="Nhập mẫu xe..."
+              />
+            </div>
+          </div>
+
+          {/* Footer */}
+          <div className="flex items-center justify-end gap-3 pt-4 border-t border-gray-100">
+            <button type="button" onClick={onClose} className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-xl">
+              Hủy bỏ
+            </button>
+            <button type="submit" className="flex items-center gap-2 px-6 py-2.5 text-sm font-medium text-white bg-indigo-600 rounded-xl shadow-md">
+              <FaSave /> {editingBus ? 'Lưu thay đổi' : 'Thêm xe'}
+            </button>
+          </div>
+
+        </form>
+      </div>
+    </div>
+  );
 };
+
 export default BusModal;

@@ -1,189 +1,232 @@
-import React, { useState, useMemo, useEffect } from 'react'; // Giữ lại import useEffect
-import { FaPlus, FaSearch, FaEdit, FaTrash, FaTimes } from 'react-icons/fa';
-import StudentModal from '../../components/StudentModal';
-// --- DỮ LIỆU MẪU (Mô phỏng dữ liệu từ CSDL của bạn) ---
-const sampleParents = [
-  { id_nguoi_dung: 101, ho_ten: "Nguyễn Văn B" },
-  { id_nguoi_dung: 102, ho_ten: "Trần Thị C" },
-  { id_nguoi_dung: 103, ho_ten: "Lê Thị D" },
-  { id_nguoi_dung: 104, ho_ten: "Phạm Thị E" },
-];
+import React, { useState, useEffect, useMemo } from "react";
+import { FaPlus, FaSearch, FaSpinner, FaEdit, FaTrash } from "react-icons/fa";
+import hocSinhService from "../../services/hocSinhService";
+import StudentModal from "../../components/StudentModal";
 
-const initialStudents = [
-  { id_hoc_sinh: 1, ho_ten: 'Nguyễn Văn An', lop: 'Lớp 6A', id_phu_huynh: 101, id_diem_dung: 201, ghi_chu: 'Cần về sớm thứ 6' },
-  { id_hoc_sinh: 2, ho_ten: 'Trần Thị Bích', lop: 'Lớp 7B', id_phu_huynh: 102, id_diem_dung: 202, ghi_chu: '' },
-  { id_hoc_sinh: 3, ho_ten: 'Lê Văn Cường', lop: 'Lớp 8A', id_phu_huynh: 103, id_diem_dung: 201, ghi_chu: 'Dị ứng hải sản' },
-];
-
-const sampleStops = [
-  { id_diem_dung: 201, ten_diem_dung: "Điểm A" },
-  { id_diem_dung: 202, ten_diem_dung: "Điểm B" },
-];
-// --- COMPONENT CHÍNH QUẢN LÝ HỌC SINH ---
 function QuanLyHocSinh() {
   const [students, setStudents] = useState([]);
   const [parents, setParents] = useState([]);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchTerm, setSearchTerm] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+
+  // Modal
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingStudent, setEditingStudent] = useState(null); // State cho học sinh đang sửa
+  const [editingStudent, setEditingStudent] = useState(null);
 
-  const [stops, setStops] = useState([]);
+  // Fetch students
+  const fetchStudents = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await hocSinhService.getAll();
+      if (res?.success) setStudents(res.data || []);
+      else setError(res?.message || "Không thể lấy danh sách học sinh");
+    } catch (err) {
+      console.error(err);
+      setError("Lỗi khi tải danh sách học sinh");
+    } finally {
+      setLoading(false);
+    }
+  };
 
-  // useEffect để fetch dữ liệu khi component được mount
+  // Fetch parents
+  const fetchParents = async () => {
+    try {
+      const res = await hocSinhService.getPhuHuynh();
+      if (res?.success) setParents(res.data || []);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   useEffect(() => {
-    // --- MÔ PHỎNG GỌI API ---
-    // Trong ứng dụng thực tế, bạn sẽ gọi các service để lấy dữ liệu từ server ở đây.
-    // Ví dụ:
-    // const studentData = await studentService.getAll();
-    // const parentData = await parentService.getAll();
-    // const stopData = await stopService.getAll();
-    setStudents(initialStudents);
-    setParents(sampleParents);
-    setStops(sampleStops);
-  }, []); // Mảng rỗng đảm bảo useEffect chỉ chạy 1 lần
+    fetchStudents();
+    fetchParents();
+  }, []);
 
-  const getParentName = (parentId) => {
-    return parents.find(p => p.id_nguoi_dung === parentId)?.ho_ten || 'N/A';
-  };
+  const filteredStudents = useMemo(
+    () =>
+      students.filter((s) =>
+        (s.ho_ten || "").toLowerCase().includes(searchTerm.toLowerCase())
+      ),
+    [students, searchTerm]
+  );
 
-  // Lấy tên điểm dừng từ id_diem_dung
-  const getStopName = (stopId) => {
-    return stops.find(s => s.id_diem_dung === stopId)?.ten_diem_dung || 'N/A';
-  };
-
-  const filteredStudents = useMemo(() => 
-    students.filter(student => 
-      student.ho_ten.toLowerCase().includes(searchTerm.toLowerCase())
-    ), [students, searchTerm]);
-  
-  // --- CÁC HÀM XỬ LÝ LOGIC ---
-
-  // Mở modal để thêm mới
-  const handleAddNew = () => {
-    setEditingStudent(null); // Đảm bảo không có dữ liệu cũ
+  const handleOpenCreate = () => {
+    setEditingStudent(null);
     setIsModalOpen(true);
   };
 
-  // Mở modal để chỉnh sửa
   const handleEdit = (student) => {
-    setEditingStudent(student); // Gán dữ liệu học sinh cần sửa
+    setEditingStudent(student);
     setIsModalOpen(true);
   };
 
-  // Xử lý lưu (Thêm mới hoặc Cập nhật)
-  const handleSaveStudent = (studentData) => {
-    // TODO: Thay thế bằng logic gọi API thực tế (ví dụ: StudentService.update hoặc StudentService.create)
-    if (studentData.id_hoc_sinh) {
-      // --- Logic SỬA ---
-      setStudents(students.map(s => 
-        s.id_hoc_sinh === studentData.id_hoc_sinh ? studentData : s
-      ));
-      // Gợi ý: Sử dụng thư viện toast để hiển thị thông báo đẹp hơn
-      alert('Cập nhật thông tin học sinh thành công!');
-    } else {
-      // --- Logic THÊM MỚI ---
-      const newStudentWithId = { 
-        ...studentData, 
-        id_hoc_sinh: Math.max(0, ...students.map(s => s.id_hoc_sinh)) + 1 // Giả lập id mới, API sẽ trả về id thật
-      };
-      setStudents([...students, newStudentWithId]);
-      alert('Thêm học sinh mới thành công!');
+  const handleSave = async (formData) => {
+    try {
+      if (editingStudent) {
+        // Update
+        const res = await hocSinhService.update(editingStudent.id_hoc_sinh, formData);
+        if (res?.success) {
+          setStudents((prev) =>
+            prev.map((s) => (s.id_hoc_sinh === editingStudent.id_hoc_sinh ? res.data : s))
+          );
+          setIsModalOpen(false);
+        } else {
+          alert(res?.message || "Cập nhật thất bại");
+        }
+      } else {
+        // Create
+        const res = await hocSinhService.create(formData);
+        if (res?.success) {
+          setStudents((prev) => [res.data, ...prev]);
+          setIsModalOpen(false);
+        } else {
+          alert(res?.message || "Thêm học sinh thất bại");
+        }
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Lỗi khi lưu học sinh");
     }
-    setIsModalOpen(false);
-    setEditingStudent(null); // Reset state sau khi lưu
   };
 
-  // Xử lý xóa
-  const handleDeleteStudent = (studentId) => {
-    // Logic xác nhận chỉ nên ở một nơi
-    if (window.confirm('Bạn có chắc chắn muốn xóa học sinh này không?')) {
-      // TODO: Thay thế bằng logic gọi API thực tế (ví dụ: StudentService.delete(studentId))
-      setStudents(students.filter(s => s.id_hoc_sinh !== studentId));
-      alert('Xóa học sinh thành công!');
-    }
-    // Đóng modal nếu nó đang mở cho học sinh vừa bị xóa
-    if (editingStudent && editingStudent.id_hoc_sinh === studentId) {
-        setIsModalOpen(false);
-        setEditingStudent(null);
+  const handleDelete = async (student) => {
+    if (!window.confirm("Bạn có chắc muốn xóa học sinh này?")) return;
+    try {
+      const res = await hocSinhService.delete(student.id_hoc_sinh);
+      if (res?.success) {
+        setStudents((prev) => prev.filter((s) => s.id_hoc_sinh !== student.id_hoc_sinh));
+      } else {
+        alert(res?.message || "Xóa thất bại");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Lỗi khi xóa học sinh");
     }
   };
 
   return (
-    <>
-      <StudentModal 
-        isOpen={isModalOpen} 
-        onClose={() => { setIsModalOpen(false); setEditingStudent(null); }} 
-        onSave={handleSaveStudent}
-        onDelete={handleDeleteStudent} // Prop để xóa từ modal
-        initialData={editingStudent} // Prop chứa dữ liệu để sửa
+    <div className="min-h-screen bg-gray-50/50 p-6 space-y-6">
+      {/* Modal */}
+      <StudentModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        onSave={handleSave}
+        editingStudent={editingStudent}
         parents={parents}
-        stops = {stops}
       />
 
-      <div className="bg-white p-6 rounded-lg shadow-md">
-        <div className="flex justify-between items-center mb-6">
-          <h1 className="text-2xl font-bold text-gray-800">Quản lý học sinh</h1>
-          <button 
-            onClick={handleAddNew} // Sử dụng hàm mới để thêm
-            className="flex items-center gap-2 bg-indigo-600 text-white px-4 py-2 rounded-lg shadow-md hover:bg-indigo-700 transition-colors"
-          >
-            <FaPlus />
-            Thêm học sinh
-          </button>
+      {/* Header */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900 tracking-tight">Quản lý học sinh</h1>
+          <p className="text-gray-500 mt-1">Quản lý thông tin học sinh</p>
         </div>
+        <button
+          onClick={handleOpenCreate}
+          className="flex items-center justify-center gap-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-xl shadow-sm transition-all duration-200 hover:shadow-md active:scale-95"
+        >
+          <FaPlus className="text-sm" />
+          <span>Thêm học sinh</span>
+        </button>
+      </div>
 
-        <div className="relative mb-4">
-          <input 
+      {/* Toolbar */}
+      <div className="p-5 border-b border-gray-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="relative w-full sm:w-96">
+          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+            <FaSearch className="text-gray-400" />
+          </div>
+          <input
             type="text"
             placeholder="Tìm kiếm theo tên học sinh..."
-            className="w-full px-4 py-2 pl-10 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            className="block w-full pl-10 pr-3 py-2.5 border border-gray-200 rounded-xl text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
-          <FaSearch className="absolute top-1/2 left-3 transform -translate-y-1/2 text-gray-400" />
         </div>
+        <div className="flex items-center gap-2 text-sm text-gray-500">
+          <span>Hiển thị {filteredStudents.length} kết quả</span>
+        </div>
+      </div>
 
-        <div className="overflow-x-auto">
-          <table className="min-w-full bg-white">
-            <thead className="bg-gray-100">
+      {/* Danh sách học sinh */}
+      {loading ? (
+        <div className="flex flex-col items-center justify-center py-12">
+          <FaSpinner className="animate-spin text-indigo-600 text-3xl mb-3" />
+          <p className="text-gray-500 font-medium">Đang tải danh sách học sinh...</p>
+        </div>
+      ) : error ? (
+        <div className="flex flex-col items-center justify-center py-12 text-center">
+          <p className="text-red-600 font-medium mb-2">{error}</p>
+          <button
+            onClick={fetchStudents}
+            className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors text-sm font-medium"
+          >
+            Thử lại
+          </button>
+        </div>
+      ) : (
+        <div className="overflow-x-auto bg-white rounded-2xl shadow-sm border border-gray-100">
+          <table className="min-w-full divide-y divide-gray-100">
+            <thead className="bg-gray-50/50">
               <tr>
-                <th className="py-3 px-4 text-left text-sm font-semibold text-gray-600">Mã HS</th>
-                <th className="py-3 px-4 text-left text-sm font-semibold text-gray-600">Họ và Tên</th>
-                <th className="py-3 px-4 text-left text-sm font-semibold text-gray-600">Lớp</th>
-                <th className="py-3 px-4 text-left text-sm font-semibold text-gray-600">Tên Phụ Huynh</th>
-                <th className="py-3 px-4 text-left text-sm font-semibold text-gray-600">Điểm đón/trả</th>
-                <th className="py-3 px-4 text-left text-sm font-semibold text-gray-600">Ghi chú</th>
-                <th className="py-3 px-4 text-left text-sm font-semibold text-gray-600">Hành động</th>
+                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                  Thông tin học sinh
+                </th>
+                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                  Phụ huynh
+                </th>
+                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                  Ghi chú
+                </th>
+                <th className="px-6 py-4 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                  Thao tác
+                </th>
               </tr>
             </thead>
-            <tbody>
-              {filteredStudents.map((student) => (
-                <tr key={student.id_hoc_sinh} className="border-b hover:bg-gray-50">
-                  <td className="py-3 px-4 text-gray-700">{`HS${String(student.id_hoc_sinh).padStart(3, '0')}`}</td>
-                  <td className="py-3 px-4 font-medium text-gray-900">{student.ho_ten}</td>
-                  <td className="py-3 px-4 text-gray-700">{student.lop}</td>
-                  <td className="py-3 px-4 text-gray-700">{getParentName(student.id_phu_huynh)}</td>
-                  <td className="py-3 px-4 text-gray-700">{getStopName(student.id_diem_dung)}</td>
-                  <td className="py-3 px-4 text-gray-700 truncate max-w-xs">{student.ghi_chu}</td>
-                  <td className="py-3 px-4 flex gap-3">
-                    <button 
-                      onClick={() => handleEdit(student)} 
-                      className="text-blue-500 hover:text-blue-700" 
-                      title="Sửa"
-                    ><FaEdit size={18} /></button>
-                    <button 
-                      onClick={() => handleDeleteStudent(student.id_hoc_sinh)} 
-                      className="text-red-500 hover:text-red-700" 
-                      title="Xóa"
-                    ><FaTrash size={18} /></button>
+            <tbody className="divide-y divide-gray-100 bg-white">
+              {filteredStudents.length === 0 ? (
+                <tr>
+                  <td colSpan="4" className="px-6 py-12 text-center">
+                    Không tìm thấy học sinh
                   </td>
                 </tr>
-              ))}
+              ) : (
+                filteredStudents.map((student) => (
+                  <tr key={student.id_hoc_sinh}>
+                    <td className="px-6 py-4">
+                      <div className="font-semibold text-gray-900">{student.ho_ten}</div>
+                      <div className="text-sm text-gray-500 mt-1">Lớp: {student.lop}</div>
+                    </td>
+                    <td className="px-6 py-4">
+                      {parents.find((p) => p.id_nguoi_dung === student.id_phu_huynh)?.ho_ten || "-"}
+                    </td>
+                    <td className="px-6 py-4">{student.ghi_chu || "-"}</td>
+                    <td className="px-6 py-4 text-right flex gap-2 justify-end">
+                      <button
+                        onClick={() => handleEdit(student)}
+                        className="p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                      >
+                        <FaEdit />
+                      </button>
+                      <button
+                        onClick={() => handleDelete(student)}
+                        className="p-2 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                      >
+                        <FaTrash />
+                      </button>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
-      </div>
-    </>
+      )}
+    </div>
   );
 }
 
